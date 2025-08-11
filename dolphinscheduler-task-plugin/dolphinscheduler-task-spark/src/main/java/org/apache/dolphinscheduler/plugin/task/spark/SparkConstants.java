@@ -42,6 +42,8 @@ public class SparkConstants {
 
     public static final String DEPLOY_MODE_LOCAL = "local";
 
+    public static final String DEPLOY_MODE_CLUSTER = "cluster";
+
     /**
      * --conf spark.driver.cores NUM
      */

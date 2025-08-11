@@ -44,6 +44,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.PosixFilePermission;
@@ -130,7 +131,6 @@ public class SparkTask extends AbstractYarnTask {
                 : SparkConstants.DEPLOY_MODE_LOCAL;
 
         boolean onNativeKubernetes = StringUtils.isNotEmpty(sparkParameters.getNamespace());
-
         String masterUrl = onNativeKubernetes ? SPARK_ON_K8S_MASTER_PREFIX +
                 Config.fromKubeconfig(taskExecutionContext.getK8sTaskExecutionContext().getConfigYaml()).getMasterUrl()
                 : SparkConstants.SPARK_ON_YARN;
@@ -179,8 +179,31 @@ public class SparkTask extends AbstractYarnTask {
         }
 
         ResourceInfo mainJar = sparkParameters.getMainJar();
-        if (programType != ProgramType.SQL) {
-            ResourceContext resourceContext = taskExecutionContext.getResourceContext();
+        ResourceContext resourceContext = taskExecutionContext.getResourceContext();
+        if (onNativeKubernetes && SparkConstants.DEPLOY_MODE_CLUSTER.equals(deployMode)) {
+            File hostJarFile = new File(
+                    resourceContext.getResourceItem(mainJar.getResourceName()).getResourceAbsolutePathInLocal());
+
+            String containerSparkJasBasePath = "/mnt/spark-job-jars";
+            String hostSparkJobJarsDir = hostJarFile.getParentFile().getAbsolutePath();
+
+            String submitJar = Paths.get(containerSparkJasBasePath, hostJarFile.getName()).toString();
+
+            // driver mount path for spark job jars
+            args.add("--conf");
+            args.add("spark.kubernetes.driver.volumes.hostPath.jar-volume.mount.path=" + containerSparkJasBasePath);
+            args.add("--conf");
+            args.add("spark.kubernetes.driver.volumes.hostPath.jar-volume.options.path=" + hostSparkJobJarsDir);
+
+            // executor mount path for spark job jars
+            args.add("--conf");
+            args.add("spark.kubernetes.executor.volumes.hostPath.jar-volume.mount.path=" + containerSparkJasBasePath);
+            args.add("--conf");
+            args.add("spark.kubernetes.executor.volumes.hostPath.jar-volume.options.path=" + hostSparkJobJarsDir);
+
+            args.add("local://" + submitJar);
+
+        } else {
             args.add(resourceContext.getResourceItem(mainJar.getResourceName()).getResourceAbsolutePathInLocal());
         }
 
@@ -202,7 +225,6 @@ public class SparkTask extends AbstractYarnTask {
 
                 try {
                     resourceFileName = resourceInfos.get(0).getResourceName();
-                    ResourceContext resourceContext = taskExecutionContext.getResourceContext();
                     sqlContent = FileUtils.readFileToString(
                             new File(
                                     resourceContext.getResourceItem(resourceFileName).getResourceAbsolutePathInLocal()),

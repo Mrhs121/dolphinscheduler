@@ -29,6 +29,11 @@ WORKDIR $DOLPHINSCHEDULER_HOME
 
 ADD ./target/worker-server $DOLPHINSCHEDULER_HOME
 
+# kubectl
+RUN curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" && \
+    chmod +x kubectl && \
+    mv kubectl /usr/local/bin/
+
 EXPOSE 1235
 
 CMD [ "/bin/bash", "./bin/start.sh" ]

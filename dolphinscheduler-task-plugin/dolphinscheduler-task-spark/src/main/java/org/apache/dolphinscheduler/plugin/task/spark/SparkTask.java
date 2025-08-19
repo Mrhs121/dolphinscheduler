@@ -21,6 +21,11 @@ import static org.apache.dolphinscheduler.plugin.task.api.TaskConstants.NAMESPAC
 import static org.apache.dolphinscheduler.plugin.task.api.TaskConstants.RWXR_XR_X;
 import static org.apache.dolphinscheduler.plugin.task.api.TaskConstants.UNIQUE_LABEL_NAME;
 import static org.apache.dolphinscheduler.plugin.task.spark.SparkConstants.DRIVER_LABEL_CONF;
+import static org.apache.dolphinscheduler.plugin.task.spark.SparkConstants.SPARK_JAR_MNT_PATH;
+import static org.apache.dolphinscheduler.plugin.task.spark.SparkConstants.SPARK_KUBERNETES_DRIVER_VOLUMES_HOST_PATH_JAR_VOLUME_MNT_PATH;
+import static org.apache.dolphinscheduler.plugin.task.spark.SparkConstants.SPARK_KUBERNETES_DRIVER_VOLUMES_HOST_PATH_JAR_VOLUME_OPT_PATH;
+import static org.apache.dolphinscheduler.plugin.task.spark.SparkConstants.SPARK_KUBERNETES_EXECUTOR_VOLUMES_HOST_PATH_JAR_VOLUME_MNT_PATH;
+import static org.apache.dolphinscheduler.plugin.task.spark.SparkConstants.SPARK_KUBERNETES_EXECUTOR_VOLUMES_HOST_PATH_JAR_VOLUME_OPT_PATH;
 import static org.apache.dolphinscheduler.plugin.task.spark.SparkConstants.SPARK_KUBERNETES_NAMESPACE;
 import static org.apache.dolphinscheduler.plugin.task.spark.SparkConstants.SPARK_ON_K8S_MASTER_PREFIX;
 
@@ -44,6 +49,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.PosixFilePermission;
@@ -188,8 +194,27 @@ public class SparkTask extends AbstractYarnTask {
         }
 
         ResourceInfo mainJar = sparkParameters.getMainJar();
-        if (programType != ProgramType.SQL) {
-            ResourceContext resourceContext = taskExecutionContext.getResourceContext();
+
+        ResourceContext resourceContext = taskExecutionContext.getResourceContext();
+        if (SparkConstants.DEPLOY_MODE_CLUSTER.equals(deployMode) && onNativeKubernetes) {
+            File hostJarFile = new File(
+                    resourceContext.getResourceItem(mainJar.getResourceName()).getResourceAbsolutePathInLocal());
+            String hostSparkJobJarsDir = hostJarFile.getParentFile().getAbsolutePath();
+            String submitJar = Paths.get(SPARK_JAR_MNT_PATH, hostJarFile.getName()).toString();
+
+            // driver mount path for spark job jars
+            args.add(String.format(SPARK_KUBERNETES_DRIVER_VOLUMES_HOST_PATH_JAR_VOLUME_MNT_PATH, SPARK_JAR_MNT_PATH));
+            args.add(String.format(SPARK_KUBERNETES_DRIVER_VOLUMES_HOST_PATH_JAR_VOLUME_OPT_PATH,
+                    hostSparkJobJarsDir));
+
+            // executor mount path for spark job jars
+            args.add(String.format(SPARK_KUBERNETES_EXECUTOR_VOLUMES_HOST_PATH_JAR_VOLUME_MNT_PATH,
+                    SPARK_JAR_MNT_PATH));
+            args.add(String.format(SPARK_KUBERNETES_EXECUTOR_VOLUMES_HOST_PATH_JAR_VOLUME_OPT_PATH,
+                    hostSparkJobJarsDir));
+
+            args.add("local://" + submitJar);
+        } else if (programType != ProgramType.SQL) {
             args.add(resourceContext.getResourceItem(mainJar.getResourceName()).getResourceAbsolutePathInLocal());
         }
 
@@ -211,7 +236,6 @@ public class SparkTask extends AbstractYarnTask {
 
                 try {
                     resourceFileName = resourceInfos.get(0).getResourceName();
-                    ResourceContext resourceContext = taskExecutionContext.getResourceContext();
                     sqlContent = FileUtils.readFileToString(
                             new File(
                                     resourceContext.getResourceItem(resourceFileName).getResourceAbsolutePathInLocal()),

@@ -42,6 +42,7 @@ public class SparkConstants {
 
     public static final String DEPLOY_MODE_LOCAL = "local";
 
+    public static final String DEPLOY_MODE_CLUSTER = "cluster";
     /**
      * --conf spark.driver.cores NUM
      */
@@ -104,5 +105,15 @@ public class SparkConstants {
     public static final String TYPE_SCRIPT = "SCRIPT";
 
     public static final String TYPE_FILE = "FILE";
+
+    public static final String SPARK_KUBERNETES_DRIVER_VOLUMES_HOST_PATH_JAR_VOLUME_MNT_PATH =
+            "--conf spark.kubernetes.driver.volumes.hostPath.jar-volume.mount.path=%s";
+    public static final String SPARK_KUBERNETES_DRIVER_VOLUMES_HOST_PATH_JAR_VOLUME_OPT_PATH =
+            "--conf spark.kubernetes.driver.volumes.hostPath.jar-volume.options.path=%s";
+    public static final String SPARK_KUBERNETES_EXECUTOR_VOLUMES_HOST_PATH_JAR_VOLUME_MNT_PATH =
+            "--conf spark.kubernetes.executor.volumes.hostPath.jar-volume.mount.path=%s";
+    public static final String SPARK_KUBERNETES_EXECUTOR_VOLUMES_HOST_PATH_JAR_VOLUME_OPT_PATH =
+            "--conf spark.kubernetes.executor.volumes.hostPath.jar-volume.options.path=%s";
+    public static final String SPARK_JAR_MNT_PATH = "/mnt/spark-job-jars";
 
 }

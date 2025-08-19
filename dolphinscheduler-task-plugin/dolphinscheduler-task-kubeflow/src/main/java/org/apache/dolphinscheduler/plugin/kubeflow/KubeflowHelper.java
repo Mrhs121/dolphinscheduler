@@ -87,6 +87,9 @@ public class KubeflowHelper {
             messageIndex = conditions.size();
             JsonNode lastCondition = conditions.get(conditions.size() - 1);
             lastConditionType = lastCondition.has("type") ? lastCondition.get("type").asText() : "";
+        } else if (status.has("applicationState")) {
+            JsonNode conditions = status.get("applicationState");
+            lastConditionType = conditions.has("state") ? conditions.get("state").asText() : "";
         }
         String phase;
         if (status.has("phase")) {
@@ -109,9 +112,9 @@ public class KubeflowHelper {
 
     public static class STATUS {
 
-        public static final HashSet<String> SUCCESS_SET = Sets.newHashSet("Succeeded", "Available", "Bound");
-        public static final HashSet<String> FAILED_SET = Sets.newHashSet("Failed");
-
+        public static final HashSet<String> SUCCESS_SET = Sets.newHashSet("Succeeded", "Available", "Bound",
+                "COMPLETED");
+        public static final HashSet<String> FAILED_SET = Sets.newHashSet("Failed", "FAILED");
     }
 
     public static class CONSTANTS {

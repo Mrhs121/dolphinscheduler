@@ -11,11 +11,13 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
-public class SeatunnelRestParameters extends AbstractParameters {
+public class SeaTunnelRestParameters extends AbstractParameters {
 
     private String jobConf;
     private String jobName;
     private String restUrl;
+    private String authToken;
+    private Integer logPullLimit = 8192;
 
     /**
      * 轮询间隔（毫秒） 10s

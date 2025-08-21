@@ -8,7 +8,7 @@ import org.apache.dolphinscheduler.plugin.task.api.parameters.AbstractParameters
 import org.apache.dolphinscheduler.plugin.task.api.parameters.ParametersNode;
 import org.apache.dolphinscheduler.plugin.task.api.parameters.resource.ResourceParametersHelper;
 
-public class SeatunnelRestTaskChannel implements TaskChannel {
+public class SeaTunnelRestTaskChannel implements TaskChannel {
 
     @Override
     public void cancelApplication(boolean status) {
@@ -17,18 +17,18 @@ public class SeatunnelRestTaskChannel implements TaskChannel {
 
     @Override
     public AbstractTask createTask(TaskExecutionContext taskRequest) {
-        SeatunnelRestParameters seatunnelRestParameters =
-                JSONUtils.parseObject(taskRequest.getTaskParams(), SeatunnelRestParameters.class);
+        SeaTunnelRestParameters seatunnelRestParameters =
+                JSONUtils.parseObject(taskRequest.getTaskParams(), SeaTunnelRestParameters.class);
         if (seatunnelRestParameters == null || !seatunnelRestParameters.checkParameters()) {
-            throw new IllegalArgumentException("Invalid SeatunnelRestParameters");
+            throw new IllegalArgumentException("Invalid SeaTunnelRestParameters");
         }
-        return new SeatunnelRestTask(taskRequest);
+        return new SeaTunnelRestTask(taskRequest);
 
     }
 
     @Override
     public AbstractParameters parseParameters(ParametersNode parametersNode) {
-        return JSONUtils.parseObject(parametersNode.getTaskParams(), SeatunnelRestParameters.class);
+        return JSONUtils.parseObject(parametersNode.getTaskParams(), SeaTunnelRestParameters.class);
     }
 
     @Override

@@ -8,8 +8,8 @@ import java.util.List;
 
 import com.google.auto.service.AutoService;
 
-@AutoService(SeatunnelRestTaskChannelFactory.class)
-public class SeatunnelRestTaskChannelFactory implements TaskChannelFactory {
+@AutoService(SeaTunnelRestTaskChannelFactory.class)
+public class SeaTunnelRestTaskChannelFactory implements TaskChannelFactory {
 
     @Override
     public String getName() {
@@ -23,6 +23,6 @@ public class SeatunnelRestTaskChannelFactory implements TaskChannelFactory {
 
     @Override
     public TaskChannel create() {
-        return new SeatunnelRestTaskChannel();
+        return new SeaTunnelRestTaskChannel();
     }
 }

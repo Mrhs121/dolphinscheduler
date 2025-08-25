@@ -115,5 +115,5 @@ public class SparkConstants {
     public static final String SPARK_KUBERNETES_EXECUTOR_VOLUMES_HOST_PATH_JAR_VOLUME_OPT_PATH =
             "--conf spark.kubernetes.executor.volumes.hostPath.jar-volume.options.path=%s";
     public static final String SPARK_JAR_MNT_PATH = "/mnt/spark-job-jars";
-
+    public static final String SPARK_KUBERNETES_FILE_UPLOAD_PATH = "spark.kubernetes.file.upload.path";
 }

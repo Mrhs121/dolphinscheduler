@@ -43,6 +43,7 @@ task:
     - 'DYNAMIC'
   dataIntegration:
     - 'SEATUNNEL'
+    - 'SEATUNNEL_REST_V2'
     - 'DATAX'
     - 'SQOOP'
   dataQuality:

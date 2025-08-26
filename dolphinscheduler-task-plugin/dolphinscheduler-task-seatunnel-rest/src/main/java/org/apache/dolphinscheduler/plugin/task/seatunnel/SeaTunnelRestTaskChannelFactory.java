@@ -8,7 +8,7 @@ import java.util.List;
 
 import com.google.auto.service.AutoService;
 
-@AutoService(SeaTunnelRestTaskChannelFactory.class)
+@AutoService(TaskChannelFactory.class)
 public class SeaTunnelRestTaskChannelFactory implements TaskChannelFactory {
 
     @Override

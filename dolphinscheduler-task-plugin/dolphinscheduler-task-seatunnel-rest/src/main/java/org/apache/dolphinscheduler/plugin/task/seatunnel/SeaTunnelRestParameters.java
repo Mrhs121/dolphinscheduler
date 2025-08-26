@@ -17,7 +17,8 @@ public class SeaTunnelRestParameters extends AbstractParameters {
     private String jobName;
     private String restUrl;
     private String authToken;
-    private Integer logPullLimit = 8192;
+    private String format;
+    private Integer logPullLimit = 65536;
 
     /**
      * 轮询间隔（毫秒） 10s
@@ -27,7 +28,6 @@ public class SeaTunnelRestParameters extends AbstractParameters {
     @Override
     public boolean checkParameters() {
         return StringUtils.isNotEmpty(jobConf)
-                && StringUtils.isNotEmpty(jobName)
-                && StringUtils.isNotEmpty(restUrl);
+                && StringUtils.isNotEmpty(jobName);
     }
 }

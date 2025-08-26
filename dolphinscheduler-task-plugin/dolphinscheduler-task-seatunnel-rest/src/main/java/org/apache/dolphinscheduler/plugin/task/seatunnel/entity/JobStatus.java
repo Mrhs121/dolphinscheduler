@@ -24,8 +24,8 @@ public class JobStatus extends JobInfo {
     @JsonProperty("metrics")
     private Metrics metrics;
 
-    @JsonProperty("finishedTime")
-    private String finishedTime;
+    @JsonProperty("finishTime")
+    private String finishTime;
 
     @JsonProperty("errorMsg")
     private String errorMsg;
@@ -45,11 +45,11 @@ public class JobStatus extends JobInfo {
         @JsonProperty("jobId")
         private String jobId;
         @JsonProperty("envOptions")
-        private List<Object> envOptions;
+        private Map<String, String> envOptions;
         @JsonProperty("vertexInfoMap")
-        private List<VertexInfo> vertexInfoMap;
+        private Map<Long, VertexInfo> vertexInfoMap;
         @JsonProperty("pipelineEdges")
-        private Map<String, Object> pipelineEdges;
+        private Map<Integer, List<Edge>> pipelineEdges;
     }
 
     @Data
@@ -125,4 +125,14 @@ public class JobStatus extends JobInfo {
         private Map<String, String> tableSinkWriteBytesPerSeconds;
 
     }
+
+    @Data
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class Edge {
+
+        private Long inputVertexId;
+
+        private Long targetVertexId;
+    }
+
 }

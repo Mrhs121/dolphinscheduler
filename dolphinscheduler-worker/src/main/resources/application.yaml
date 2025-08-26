@@ -96,3 +96,18 @@ management:
 
 metrics:
   enabled: true
+
+seatunnel:
+  rest:
+    url: "http://127.0.0.1:8080"
+  auth:
+    token: ""
+  log:
+    pull:
+      limit: 65536
+  poll:
+    interval:
+      ms: 10000
+  content:
+    # json/hocon
+    format: "json"

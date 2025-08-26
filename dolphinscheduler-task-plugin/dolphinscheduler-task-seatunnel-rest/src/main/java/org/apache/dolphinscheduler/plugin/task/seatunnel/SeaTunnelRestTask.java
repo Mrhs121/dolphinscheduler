@@ -20,6 +20,7 @@ import org.apache.dolphinscheduler.plugin.task.api.TaskException;
 import org.apache.dolphinscheduler.plugin.task.api.TaskExecutionContext;
 import org.apache.dolphinscheduler.plugin.task.api.model.ApplicationInfo;
 import org.apache.dolphinscheduler.plugin.task.api.parameters.AbstractParameters;
+import org.apache.dolphinscheduler.plugin.task.seatunnel.config.SeaTunnelConfig;
 import org.apache.dolphinscheduler.plugin.task.seatunnel.entity.ConfigFormat;
 import org.apache.dolphinscheduler.plugin.task.seatunnel.entity.JobInfo;
 import org.apache.dolphinscheduler.plugin.task.seatunnel.entity.JobLogFile;
@@ -433,7 +434,7 @@ public class SeaTunnelRestTask extends AbstractRemoteTask {
         String url = firstNonBlank(seatunnelRestParameters.getRestUrl(),
                 System.getenv(ENV_URL),
                 envFromUi.get(ENV_URL),
-                getProp(CFG_URL, null));
+                SeaTunnelConfig.getString(CFG_URL, ENV_URL, null));
         if (StringUtils.isBlank(url)) {
             throw new IllegalArgumentException(
                     "SeaTunnel REST url is empty. Set it via task param `restUrl`, " +
@@ -446,30 +447,19 @@ public class SeaTunnelRestTask extends AbstractRemoteTask {
                 seatunnelRestParameters.getAuthToken(),
                 System.getenv(ENV_TOKEN),
                 envFromUi.get(ENV_TOKEN),
-                getProp(CFG_TOKEN, null));
+                SeaTunnelConfig.getString(CFG_TOKEN, ENV_TOKEN, ""));
         seatunnelRestParameters.setAuthToken(token);
 
         // logPullLimit
         Integer limit = seatunnelRestParameters.getLogPullLimit();
-        if (limit == null) {
-            limit = parseIntOrNull(envFromUi.get(ENV_LOG_LIMIT));
-            if (limit == null) {
-                limit = parseIntOrNull(System.getenv(ENV_LOG_LIMIT));
-                if (limit == null) {
-                    limit = getPropInt(CFG_LOG_LIMIT, 65536);
-                }
-            }
-        }
-        seatunnelRestParameters.setLogPullLimit(limit);
+        if (limit == null)
+            limit = SeaTunnelConfig.getInt(CFG_LOG_LIMIT, ENV_LOG_LIMIT, 65536);
+        seatunnelRestParameters.setLogPullLimit(Math.max(1024, limit));
 
         // pollIntervalMs
         long pollMs = seatunnelRestParameters.getPollIntervalMs();
-        if (pollMs <= 0) {
-            Long envVal = parseLongOrNull(envFromUi.get(ENV_POLL_MS));
-            if (envVal == null)
-                envVal = parseLongOrNull(System.getenv(ENV_POLL_MS));
-            pollMs = (envVal != null && envVal > 0) ? envVal : getPropLong(CFG_POLL_MS, 10_000L);
-        }
+        if (pollMs <= 0)
+            pollMs = SeaTunnelConfig.getLong(CFG_POLL_MS, ENV_POLL_MS, 10_000L);
         seatunnelRestParameters.setPollIntervalMs(pollMs);
 
         // format
@@ -477,7 +467,7 @@ public class SeaTunnelRestTask extends AbstractRemoteTask {
                 seatunnelRestParameters.getFormat(),
                 envFromUi.get(ENV_FORMAT),
                 System.getenv(ENV_FORMAT),
-                getProp(CFG_FORMAT, null));
+                SeaTunnelConfig.getString(CFG_FORMAT, ENV_FORMAT, "json"));
         seatunnelRestParameters.setFormat(format);
 
         log.info("Resolved SeaTunnel REST config: url={}, authToken={}, logPullLimit={}, pollIntervalMs={}, format={}",

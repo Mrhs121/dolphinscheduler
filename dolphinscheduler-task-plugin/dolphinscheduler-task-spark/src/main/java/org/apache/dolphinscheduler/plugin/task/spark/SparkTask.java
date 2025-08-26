@@ -196,26 +196,34 @@ public class SparkTask extends AbstractYarnTask {
         ResourceInfo mainJar = sparkParameters.getMainJar();
 
         ResourceContext resourceContext = taskExecutionContext.getResourceContext();
-        if (SparkConstants.DEPLOY_MODE_CLUSTER.equals(deployMode) && onNativeKubernetes) {
-            File hostJarFile = new File(
-                    resourceContext.getResourceItem(mainJar.getResourceName()).getResourceAbsolutePathInLocal());
-            String hostSparkJobJarsDir = hostJarFile.getParentFile().getAbsolutePath();
-            String submitJar = Paths.get(SPARK_JAR_MNT_PATH, hostJarFile.getName()).toString();
+        // If the user does not specify the upload path,
+        // should automatically mount the task jar into the driver pod
+        if (programType != ProgramType.SQL) {
+            if (SparkConstants.DEPLOY_MODE_CLUSTER.equals(deployMode) && onNativeKubernetes
+                    && !others.contains(SparkConstants.SPARK_KUBERNETES_FILE_UPLOAD_PATH)) {
+                log.info("Spark task running on Kubernetes in cluster mode without file upload path specified. "
+                        + "Automatically mounting the jar file into the driver pod for execution.");
+                File hostJarFile = new File(
+                        resourceContext.getResourceItem(mainJar.getResourceName()).getResourceAbsolutePathInLocal());
+                String hostSparkJobJarsDir = hostJarFile.getParentFile().getAbsolutePath();
+                String submitJar = Paths.get(SPARK_JAR_MNT_PATH, hostJarFile.getName()).toString();
 
-            // driver mount path for spark job jars
-            args.add(String.format(SPARK_KUBERNETES_DRIVER_VOLUMES_HOST_PATH_JAR_VOLUME_MNT_PATH, SPARK_JAR_MNT_PATH));
-            args.add(String.format(SPARK_KUBERNETES_DRIVER_VOLUMES_HOST_PATH_JAR_VOLUME_OPT_PATH,
-                    hostSparkJobJarsDir));
+                // driver mount path for spark job jars
+                args.add(String.format(SPARK_KUBERNETES_DRIVER_VOLUMES_HOST_PATH_JAR_VOLUME_MNT_PATH,
+                        SPARK_JAR_MNT_PATH));
+                args.add(String.format(SPARK_KUBERNETES_DRIVER_VOLUMES_HOST_PATH_JAR_VOLUME_OPT_PATH,
+                        hostSparkJobJarsDir));
 
-            // executor mount path for spark job jars
-            args.add(String.format(SPARK_KUBERNETES_EXECUTOR_VOLUMES_HOST_PATH_JAR_VOLUME_MNT_PATH,
-                    SPARK_JAR_MNT_PATH));
-            args.add(String.format(SPARK_KUBERNETES_EXECUTOR_VOLUMES_HOST_PATH_JAR_VOLUME_OPT_PATH,
-                    hostSparkJobJarsDir));
+                // executor mount path for spark job jars
+                args.add(String.format(SPARK_KUBERNETES_EXECUTOR_VOLUMES_HOST_PATH_JAR_VOLUME_MNT_PATH,
+                        SPARK_JAR_MNT_PATH));
+                args.add(String.format(SPARK_KUBERNETES_EXECUTOR_VOLUMES_HOST_PATH_JAR_VOLUME_OPT_PATH,
+                        hostSparkJobJarsDir));
 
-            args.add("local://" + submitJar);
-        } else if (programType != ProgramType.SQL) {
-            args.add(resourceContext.getResourceItem(mainJar.getResourceName()).getResourceAbsolutePathInLocal());
+                args.add("local://" + submitJar);
+            } else {
+                args.add(resourceContext.getResourceItem(mainJar.getResourceName()).getResourceAbsolutePathInLocal());
+            }
         }
 
         String mainArgs = sparkParameters.getMainArgs();

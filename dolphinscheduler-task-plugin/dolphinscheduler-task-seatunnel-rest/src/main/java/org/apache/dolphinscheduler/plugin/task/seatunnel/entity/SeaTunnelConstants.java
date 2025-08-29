@@ -7,6 +7,9 @@ public class SeaTunnelConstants {
     public static final String STOP_JOB = "/stop-job";
     public static final String GET_LOG_JOB = "/logs/";
 
+
+    public static final String LOCAL_HOST = "localhost:8080";
+
     public static final String CFG_URL = "seatunnel.rest.url";
     public static final String CFG_TOKEN = "seatunnel.auth.token";
     public static final String CFG_LOG_LIMIT = "seatunnel.log.pull.limit";

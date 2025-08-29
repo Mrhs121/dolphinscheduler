@@ -64,6 +64,10 @@ public class SeaTunnelClient {
 
     }
 
+    public String getRestUrl() {
+        return restUrl;
+    }
+
     private RequestConfig reqCfg() {
 
         return RequestConfig.custom()

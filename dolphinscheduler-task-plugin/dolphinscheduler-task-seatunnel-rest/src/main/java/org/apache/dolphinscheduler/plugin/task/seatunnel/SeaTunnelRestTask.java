@@ -11,6 +11,7 @@ import static org.apache.dolphinscheduler.plugin.task.seatunnel.entity.SeaTunnel
 import static org.apache.dolphinscheduler.plugin.task.seatunnel.entity.SeaTunnelConstants.ENV_POLL_MS;
 import static org.apache.dolphinscheduler.plugin.task.seatunnel.entity.SeaTunnelConstants.ENV_TOKEN;
 import static org.apache.dolphinscheduler.plugin.task.seatunnel.entity.SeaTunnelConstants.ENV_URL;
+import static org.apache.dolphinscheduler.plugin.task.seatunnel.entity.SeaTunnelConstants.LOCAL_HOST;
 
 import org.apache.dolphinscheduler.common.utils.JSONUtils;
 import org.apache.dolphinscheduler.common.utils.PropertyUtils;
@@ -393,6 +394,8 @@ public class SeaTunnelRestTask extends AbstractRemoteTask {
                 continue;
             try {
                 String logLink = file.getLogLink();
+                // 默认返回的是 http://localhost:8080/logs/job-xxxx.log
+                logLink = logLink.replace(LOCAL_HOST,seatunnelClient.getRestUrl());
                 long offset = fileOffset.getOrDefault(logLink, 0L);
                 RangeResp rangeResp = seatunnelClient.fetchLogRange(logLink, offset, maxBytes);
                 if (rangeResp == null)

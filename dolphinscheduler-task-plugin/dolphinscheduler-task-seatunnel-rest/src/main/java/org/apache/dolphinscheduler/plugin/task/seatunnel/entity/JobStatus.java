@@ -7,6 +7,7 @@ import lombok.Data;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
 
 @Data
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -34,7 +35,7 @@ public class JobStatus extends JobInfo {
     private Map<String, Object> envOptions;
 
     @JsonProperty("pluginJarsUrls")
-    private List<String> pluginJarsUrls;
+    private JsonNode pluginJarsUrls;
 
     @JsonProperty("isStartWithSavePoint")
     private boolean isStartWithSavePoint;

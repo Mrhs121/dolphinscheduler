@@ -331,41 +331,41 @@ public class SeaTunnelRestTask extends AbstractRemoteTask {
      */
     private static int safeUtf8Cut(byte[] b) {
         int n = b.length;
-        if (n == 0) return 0;
+        if (n == 0) {
+            return 0;
+        }
 
         // 从末尾回退连续的续字节(10xxxxxx)，最多3个
         int i = n - 1;
         int cont = 0;
-        while (i >= 0 && cont < 3 && (b[i] & 0xC0) == 0x80) { // 10xxxxxx
-            cont++;
+        while (i >= 0 && (b[i] & 0xC0) == 0x80 && cont < 3) {
             i--;
+            cont++;
         }
-        if (cont == 0) {
-            // 末尾正好在字符边界（ASCII 或完整多字节）
-            return n;
-        }
+
         if (i < 0) {
-            // 整个缓冲区结尾都是续字节（没看到起始字节），丢弃这些续字节
-            return n - cont;
+            // 全是续字节，全部丢弃
+            return 0;
         }
+
         int lead = b[i] & 0xFF;
         int need;
-        if ((lead & 0x80) == 0x00) {           // 0xxxxxxx (ASCII)
+        if ((lead & 0x80) == 0x00) { // 0xxxxxxx (ASCII)
             // 前一位是 ASCII，但后面跟了续字节 => 非法续字节，丢弃续字节
             return n - cont;
-        } else if ((lead & 0xE0) == 0xC0) {    // 110xxxxx (需要1个续字节)
+        } else if ((lead & 0xE0) == 0xC0) { // 110xxxxx (需要1个续字节)
             need = 1;
-        } else if ((lead & 0xF0) == 0xE0) {    // 1110xxxx (需要2个续字节)
+        } else if ((lead & 0xF0) == 0xE0) { // 1110xxxx (需要2个续字节)
             need = 2;
-        } else if ((lead & 0xF8) == 0xF0) {    // 11110xxx (需要3个续字节)
+        } else if ((lead & 0xF8) == 0xF0) { // 11110xxx (需要3个续字节)
             need = 3;
         } else {
             // 非法起始字节，保守丢弃续字节
             return n - cont;
         }
-        // 续字节不足 => 被截断，应裁掉起始字节后的续字节
-        // i 为起始字节位置
-        return (cont < need) ? i : n;
+
+        // 如果续字节数量不足，丢弃续字节，否则保留完整字符
+        return cont < need ? n - cont : n;
     }
 
     /**

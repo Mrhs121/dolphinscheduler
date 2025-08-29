@@ -47,7 +47,7 @@ public class JobStatus extends JobInfo {
         @JsonProperty("envOptions")
         private Map<String, String> envOptions;
         @JsonProperty("vertexInfoMap")
-        private Map<Long, VertexInfo> vertexInfoMap;
+        private List<VertexInfo> vertexInfoMap;
         @JsonProperty("pipelineEdges")
         private Map<Integer, List<Edge>> pipelineEdges;
     }

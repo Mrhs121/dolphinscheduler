@@ -327,26 +327,45 @@ public class SeaTunnelRestTask extends AbstractRemoteTask {
     }
 
     /**
-     * 找到buf能解码最大前缀长度
-     * @param b
-     * @return
+     * 返回 b 的“最大可完整 UTF-8 前缀”长度（零分配、位运算判断）
      */
-    private int safeUtf8Cut(byte[] b) {
-        // 字符长度
+    private static int safeUtf8Cut(byte[] b) {
         int n = b.length;
-        // 最多回退3个字节
-        int back = Math.min(3, n);
-        for (int i = 0; i <= back; i++) {
-            // 截取长度
-            int cut = n - i;
-            try {
-                // 从后往前看字符串是否抛异常 直到不抛异常，返回截断长度
-                new String(b, 0, cut, StandardCharsets.UTF_8);
-                return cut;
-            } catch (Exception ignore) {
-            }
+        if (n == 0) return 0;
+
+        // 从末尾回退连续的续字节(10xxxxxx)，最多3个
+        int i = n - 1;
+        int cont = 0;
+        while (i >= 0 && cont < 3 && (b[i] & 0xC0) == 0x80) { // 10xxxxxx
+            cont++;
+            i--;
         }
-        return n;
+        if (cont == 0) {
+            // 末尾正好在字符边界（ASCII 或完整多字节）
+            return n;
+        }
+        if (i < 0) {
+            // 整个缓冲区结尾都是续字节（没看到起始字节），丢弃这些续字节
+            return n - cont;
+        }
+        int lead = b[i] & 0xFF;
+        int need;
+        if ((lead & 0x80) == 0x00) {           // 0xxxxxxx (ASCII)
+            // 前一位是 ASCII，但后面跟了续字节 => 非法续字节，丢弃续字节
+            return n - cont;
+        } else if ((lead & 0xE0) == 0xC0) {    // 110xxxxx (需要1个续字节)
+            need = 1;
+        } else if ((lead & 0xF0) == 0xE0) {    // 1110xxxx (需要2个续字节)
+            need = 2;
+        } else if ((lead & 0xF8) == 0xF0) {    // 11110xxx (需要3个续字节)
+            need = 3;
+        } else {
+            // 非法起始字节，保守丢弃续字节
+            return n - cont;
+        }
+        // 续字节不足 => 被截断，应裁掉起始字节后的续字节
+        // i 为起始字节位置
+        return (cont < need) ? i : n;
     }
 
     /**

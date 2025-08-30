@@ -160,6 +160,9 @@ export const TASK_TYPES_MAP = {
   REMOTESHELL: {
     alias: 'REMOTESHELL',
     helperLinkDisable: true
+  },  SEATUNNEL_REST_V2: {
+    alias: 'SeaTunnel REST v2',
+    helperLinkDisable: true,
   }
 } as {
   [key in TaskType]: {

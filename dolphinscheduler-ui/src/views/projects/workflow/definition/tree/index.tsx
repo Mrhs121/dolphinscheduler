@@ -162,7 +162,12 @@ export default defineComponent({
         taskType: 'FLINK_STREAM',
         color: '#d68f5b',
         image: `${import.meta.env.BASE_URL}images/task-icons/flink.png`
-      }
+      },
+      {
+        taskType: 'SEATUNNEL_REST_V2',
+        color: '#d68f5b',
+        image: `${import.meta.env.BASE_URL}images/task-icons/seatunnel_rest_v2.png`
+      },
     ])
 
     const showTooltip = ref(false)

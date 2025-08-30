@@ -91,3 +91,5 @@ export { useDataFactory } from './use-data-factory'
 export { useRemoteShell } from './use-remote-shell'
 export { useDynamic } from './use-dynamic'
 export { useYarnQueue } from './use-queue'
+export { useSeaTunnelRestV2 } from './use-sea-tunnel-rest-v2'
+

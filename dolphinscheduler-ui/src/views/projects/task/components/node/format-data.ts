@@ -497,7 +497,15 @@ export function formatParams(data: INodeData): {
     taskParams.filterCondition = data.filterCondition
     taskParams.listParameters = data.listParameters
   }
-
+  if (data.taskType === 'SEATUNNEL_REST_V2') {
+    taskParams.jobName = data.jobName
+    taskParams.jobConf = data.jobConf
+    taskParams.restUrl = data.restUrl
+    taskParams.authToken = data.authToken
+    taskParams.format = data.format
+    taskParams.logPullLimit = data.logPullLimit
+    taskParams.pollIntervalMs = data.pollIntervalMs
+  }
   let timeoutNotifyStrategy = ''
   if (data.timeoutNotifyStrategy) {
     if (data.timeoutNotifyStrategy.length === 1) {

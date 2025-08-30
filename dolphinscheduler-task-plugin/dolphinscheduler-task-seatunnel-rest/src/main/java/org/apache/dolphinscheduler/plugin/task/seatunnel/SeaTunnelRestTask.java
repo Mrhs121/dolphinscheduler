@@ -395,7 +395,7 @@ public class SeaTunnelRestTask extends AbstractRemoteTask {
             try {
                 String logLink = file.getLogLink();
                 // 默认返回的是 http://localhost:8080/logs/job-xxxx.log
-                logLink = logLink.replace(LOCAL_HOST,seatunnelClient.getRestUrl());
+                logLink = logLink.replace(LOCAL_HOST, seatunnelClient.getRestUrl());
                 long offset = fileOffset.getOrDefault(logLink, 0L);
                 RangeResp rangeResp = seatunnelClient.fetchLogRange(logLink, offset, maxBytes);
                 if (rangeResp == null)

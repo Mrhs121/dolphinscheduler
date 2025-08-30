@@ -261,6 +261,12 @@ interface IRuleParameters {
 }
 
 interface ITaskParams {
+  pollIntervalMs?: any
+  logPullLimit?: any
+  format?: any
+  authToken?: any
+  restUrl?: any
+  jobConf?: any
   resourceList?: ISourceItem[]
   mainJar?: ISourceItem
   localParams?: ILocalParam[]

@@ -59,6 +59,7 @@ type TaskType =
   | 'LINKIS'
   | 'DATA_FACTORY'
   | 'REMOTESHELL'
+  | 'SEATUNNEL_REST_V2'
 
 type ProgramType = 'JAVA' | 'SCALA' | 'PYTHON'
 

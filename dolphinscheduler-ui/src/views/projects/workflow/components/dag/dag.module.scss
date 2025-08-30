@@ -213,6 +213,9 @@ $bgLight: #ffffff;
     &.icon-remoteshell {
       background-image: url('/images/task-icons/remoteshell.png');
     }
+    &.icon-seatunnel_rest_v2 {
+      background-image: url('/images/task-icons/seatunnel_rest_v2.png');
+    }
   }
 
   &:hover {
@@ -328,6 +331,9 @@ $bgLight: #ffffff;
       }
       &.icon-remoteshell {
         background-image: url('/images/task-icons/remoteshell_hover.png');
+      }
+      &.icon-seatunnel_rest_v2 {
+        background-image: url('/images/task-icons/seatunnel_rest_v2_hover.png');
       }
     }
   }

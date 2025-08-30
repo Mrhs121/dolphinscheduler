@@ -53,6 +53,8 @@ export type TaskType =
   | 'LINKIS'
   | 'DATA_FACTORY'
   | 'REMOTESHELL'
+  | 'SEATUNNEL_REST_V2'  // ← 新增这一行
+
 
 export type TaskExecuteType = 'STREAM' | 'BATCH'
 
@@ -194,6 +196,10 @@ export const TASK_TYPES_MAP = {
   REMOTESHELL: {
     alias: 'REMOTESHELL',
     helperLinkDisable: true
+  },
+  SEATUNNEL_REST_V2: {
+    alias: 'SeaTunnel REST v2',
+    helperLinkDisable: true,
   }
 } as {
   [key in TaskType]: {

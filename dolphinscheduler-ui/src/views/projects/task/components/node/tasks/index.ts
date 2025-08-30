@@ -53,6 +53,7 @@ import { useLinkis } from './use-linkis'
 import { useDataFactory } from './use-data-factory'
 import { useRemoteShell } from './use-remote-shell'
 import { useDynamic } from './use-dynamic'
+import { useSeaTunnelRestV2 } from './use-sea-tunnel-rest-v2'
 
 export default {
   SHELL: useShell,
@@ -92,5 +93,7 @@ export default {
   KUBEFLOW: useKubeflow,
   LINKIS: useLinkis,
   DATA_FACTORY: useDataFactory,
-  REMOTESHELL: useRemoteShell
+  REMOTESHELL: useRemoteShell,
+  SEATUNNEL_REST_V2: useSeaTunnelRestV2,
+
 }

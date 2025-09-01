@@ -1,6 +1,8 @@
 package org.apache.dolphinscheduler.plugin.task.seatunnel;
 
 import static org.apache.dolphinscheduler.plugin.task.api.TaskConstants.EXIT_CODE_FAILURE;
+import static org.apache.dolphinscheduler.plugin.task.api.TaskConstants.EXIT_CODE_KILL;
+import static org.apache.dolphinscheduler.plugin.task.api.TaskConstants.EXIT_CODE_SUCCESS;
 import static org.apache.dolphinscheduler.plugin.task.seatunnel.entity.SeaTunnelConstants.CFG_FORMAT;
 import static org.apache.dolphinscheduler.plugin.task.seatunnel.entity.SeaTunnelConstants.CFG_LOG_LIMIT;
 import static org.apache.dolphinscheduler.plugin.task.seatunnel.entity.SeaTunnelConstants.CFG_POLL_MS;
@@ -128,10 +130,16 @@ public class SeaTunnelRestTask extends AbstractRemoteTask {
                                 jobStatus.getErrorMsg());
 
                         log.info("SeaTunnel job finished successfully, jobId={}", jobStatus.getJobId());
+                        setExitStatusCode(EXIT_CODE_SUCCESS);
                     } else {
                         log.warn("SeaTunnel job end with state={}, jobId={}, error={}",
                                 jobStatus.getJobStatus(), jobStatus.getJobId(), jobStatus.getErrorMsg());
-                        setExitStatusCode(EXIT_CODE_FAILURE);
+                        if ("CANCELED".equalsIgnoreCase(jobStatus.getJobStatus())
+                                || "CANCELLED".equalsIgnoreCase(jobStatus.getJobStatus())) {
+                            setExitStatusCode(EXIT_CODE_KILL);
+                        } else {
+                            setExitStatusCode(EXIT_CODE_FAILURE);
+                        }
                     }
                     break;
                 }
@@ -147,6 +155,7 @@ public class SeaTunnelRestTask extends AbstractRemoteTask {
 
     /**
      * 自动识别JSON/HOCON
+     *
      * @param conf
      * @param configuredFormatOrNull
      * @return
@@ -294,10 +303,9 @@ public class SeaTunnelRestTask extends AbstractRemoteTask {
     }
 
     /**
-     *
-     * @param logKey 日志的key
+     * @param logKey     日志的key
      * @param deltaBytes 本次从日志文件增量拉到的一段字节
-     * @param prefix 日志打印前缀
+     * @param prefix     日志打印前缀
      */
     private void printIncrementBytes(String logKey, byte[] deltaBytes, String prefix) {
         if (deltaBytes == null || deltaBytes.length == 0)
@@ -557,6 +565,7 @@ public class SeaTunnelRestTask extends AbstractRemoteTask {
 
     /**
      * 解析 DS「环境管理」里的环境脚本（export KEY=VAL）
+     *
      * @param envScript
      * @return
      */

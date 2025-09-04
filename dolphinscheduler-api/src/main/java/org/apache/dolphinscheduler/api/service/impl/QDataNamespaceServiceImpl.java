@@ -1,7 +1,5 @@
 package org.apache.dolphinscheduler.api.service.impl;
 
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.dolphinscheduler.api.dto.BootstrapNamespaceResponse;
 import org.apache.dolphinscheduler.api.service.AccessTokenService;
 import org.apache.dolphinscheduler.api.service.QDataNamespaceService;
@@ -13,8 +11,8 @@ import org.apache.dolphinscheduler.dao.entity.AccessToken;
 import org.apache.dolphinscheduler.dao.entity.Queue;
 import org.apache.dolphinscheduler.dao.entity.Tenant;
 import org.apache.dolphinscheduler.dao.entity.User;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
+
+import org.apache.commons.lang3.StringUtils;
 
 import java.time.Instant;
 import java.util.Collections;
@@ -23,6 +21,11 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
+
+import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 /**
  * 创建namespace-tenant,user,token
@@ -46,7 +49,6 @@ public class QDataNamespaceServiceImpl extends BaseServiceImpl implements QDataN
 
     @Autowired
     private QueueService queueService;
-
 
     @Override
     public BootstrapNamespaceResponse bootstrapNamespace(User operator,
@@ -73,7 +75,6 @@ public class QDataNamespaceServiceImpl extends BaseServiceImpl implements QDataN
 
         return buildResponse(namespace, tenant, username, user, token, expireAt, reset, existingToken);
     }
-
 
     /**
      * 验证操作者和命名空间参数
@@ -109,8 +110,7 @@ public class QDataNamespaceServiceImpl extends BaseServiceImpl implements QDataN
                     operator,
                     namespace,
                     defaultQueue.getId(),
-                    StringUtils.defaultIfBlank(displayName, namespace)
-            );
+                    StringUtils.defaultIfBlank(displayName, namespace));
         } catch (Exception e) {
             log.error("Failed to create tenant: {}", namespace, e);
             throw new IllegalStateException("Failed to create tenant: " + namespace, e);
@@ -140,8 +140,7 @@ public class QDataNamespaceServiceImpl extends BaseServiceImpl implements QDataN
                 tenant.getId(),
                 "",
                 defaultQueue.getQueue(),
-                1
-        );
+                1);
         if (user == null) {
             throw new IllegalStateException("Failed to create user: " + username);
         }
@@ -253,8 +252,8 @@ public class QDataNamespaceServiceImpl extends BaseServiceImpl implements QDataN
                 .filter(Objects::nonNull)
                 .filter(q -> DEFAULT_QUEUE_NAME.equals(q.getQueueName()))
                 .findFirst()
-                .orElseThrow(() ->
-                        new IllegalStateException("Default queue '" + DEFAULT_QUEUE_NAME + "' not found, please create it first."));
+                .orElseThrow(() -> new IllegalStateException(
+                        "Default queue '" + DEFAULT_QUEUE_NAME + "' not found, please create it first."));
     }
 
     /**

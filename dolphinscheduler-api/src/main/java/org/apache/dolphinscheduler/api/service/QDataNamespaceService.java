@@ -17,6 +17,6 @@ public interface QDataNamespaceService {
     BootstrapNamespaceResponse bootstrapNamespace(User operator,
                                                   String namespace,
                                                   String displayName,
-                                                  String  expireAt,
+                                                  String expireAt,
                                                   Boolean resetIfExists);
 }

@@ -184,6 +184,7 @@ export function formatParams(data: INodeData): {
   if (data.taskType === 'SQL') {
     taskParams.type = data.type
     taskParams.datasource = data.datasource
+    taskParams.datasources = data.datasources
     taskParams.sql = data.sql
     taskParams.sqlType = data.sqlType
     taskParams.preStatements = data.preStatements
@@ -471,6 +472,13 @@ export function formatParams(data: INodeData): {
   if (data.taskType === 'KUBEFLOW') {
     taskParams.yamlContent = data.yamlContent
     taskParams.namespace = data.namespace
+    taskParams.programType = data.programType
+    taskParams.driverCores = data.driverCores
+    taskParams.driverMemory = data.driverMemory
+    taskParams.numExecutors = data.numExecutors
+    taskParams.executorMemory = data.executorMemory
+    taskParams.executorCores = data.executorCores
+    taskParams.datasources = data.datasources
   }
 
   if (data.taskType === 'LINKIS') {

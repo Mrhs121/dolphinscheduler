@@ -406,7 +406,17 @@ public class ProcessDefinitionServiceImpl extends BaseServiceImpl implements Pro
             log.info("Save process task relations complete, projectCode:{}, processCode:{}, processVersion:{}.",
                     processDefinition.getProjectCode(), processDefinition.getCode(), insertVersion);
         }
-
+        // --------------------------- qData need---------------------------
+        processDefinition.setProcessDefinitionLog(
+                processDefinitionLogDao.queryByDefinitionCodeAndVersion(processDefinition.getCode(), insertVersion));
+        processDefinition.setTaskDefinitionList(taskDefinitionMapper.queryByCodeList(
+                taskDefinitionLogs.stream().map(TaskDefinitionLog::getCode).collect(Collectors.toList())));
+        processDefinition.setTaskDefinitionLogList(taskDefinitionLogs);
+        processDefinition.setTaskRelationLogList(taskRelationList);
+        processDefinition
+                .setTaskRelationList(processTaskRelationMapper.queryByProcessCode(processDefinition.getCode()));
+        log.info("Create workflow success, workflow:{}.", processDefinition);
+        // --------------------------- qData need end ---------------------------
         putMsg(result, Status.SUCCESS);
         result.put(Constants.DATA_LIST, processDefinition);
         return result;

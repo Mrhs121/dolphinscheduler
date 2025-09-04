@@ -168,6 +168,38 @@ public class ProcessDefinition {
      */
     private ProcessExecutionTypeEnum executionType;
 
+    // --------------------------- qData need---------------------------
+    /**
+     * 流程定义日志列表
+     */
+    @TableField(exist = false)
+    ProcessDefinitionLog processDefinitionLog;
+
+    /**
+     * 任务定义日志列表
+     */
+    @TableField(exist = false)
+    List<TaskDefinitionLog> taskDefinitionLogList;
+
+    /**
+     * 任务关系日志列表
+     */
+    @TableField(exist = false)
+    List<ProcessTaskRelationLog> taskRelationLogList;
+
+    /**
+     * 任务定义列表
+     */
+    @TableField(exist = false)
+    List<TaskDefinition> taskDefinitionList;
+
+    /**
+     * 任务关系日志列表
+     */
+    @TableField(exist = false)
+    List<ProcessTaskRelation> taskRelationList;
+    // --------------------------- qData need end ---------------------------
+
     public ProcessDefinition(long projectCode,
                              String name,
                              long code,

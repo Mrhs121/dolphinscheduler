@@ -261,5 +261,5 @@ sso:
       -----BEGIN PUBLIC KEY-----
          xxx
       -----END PUBLIC KEY-----
-    secret: "abcdefghijklmnopqrstuvwxyz"
+    secret: "abcdefghijklmnopqrstuvwxyz1234567890"
 

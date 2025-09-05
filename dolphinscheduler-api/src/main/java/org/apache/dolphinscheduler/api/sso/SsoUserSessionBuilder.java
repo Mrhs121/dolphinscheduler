@@ -11,6 +11,8 @@ import javax.servlet.http.HttpSession;
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
@@ -34,10 +36,10 @@ public class SsoUserSessionBuilder {
         auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(req));
 
         // 放入 SecurityContext
-        org.springframework.security.core.context.SecurityContext context =
-                org.springframework.security.core.context.SecurityContextHolder.createEmptyContext();
+        SecurityContext context =
+                SecurityContextHolder.createEmptyContext();
         context.setAuthentication(auth);
-        org.springframework.security.core.context.SecurityContextHolder.setContext(context);
+        SecurityContextHolder.setContext(context);
 
         // 放入 HttpSession
         HttpSession session = req.getSession(true);

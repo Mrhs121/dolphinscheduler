@@ -19,13 +19,33 @@ public class SsoWebConfig implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        // 只匹配 UI 前缀，避免影响 API
+
+        String ui = withTrailingSlash(uiPrefix);
         registry.addInterceptor(interceptor)
-                .addPathPatterns(uiPrefix + "**")
-                .order(0); // 提前处理
+                .addPathPatterns(ui + "**")
+                // —— 排除登录与静态资源（保留首页与 index.html，让 /ui/?_sso= 能触发）
+                .excludePathPatterns(
+                        ui + "login", ui + "login/**",
+                        ui + "assets/**",
+                        ui + "**/*.js",
+                        ui + "**/*.css",
+                        ui + "**/*.map",
+                        ui + "**/*.png",
+                        ui + "**/*.jpg",
+                        ui + "**/*.jpeg",
+                        ui + "**/*.svg",
+                        ui + "**/*.gif",
+                        ui + "favicon.ico")
+                .order(0);
     }
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
+    }
+
+    private static String withTrailingSlash(String s) {
+        if (s == null || s.isEmpty())
+            return "/dolphinscheduler/ui/";
+        return s.endsWith("/") ? s : (s + "/");
     }
 }

@@ -1,5 +1,7 @@
 package org.apache.dolphinscheduler.api.sso;
 
+import org.apache.commons.lang3.StringUtils;
+
 import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
 import java.security.PublicKey;
@@ -48,13 +50,32 @@ public class JwtVerifier {
 
     @PostConstruct
     public void init() throws Exception {
-        if ("RS256".equalsIgnoreCase(alg)) {
-            PublicKey pk = readRsaPublicKey(publicKeyPem);
-            rsVerifier = new RSASSAVerifier((RSAPublicKey) pk);
-        } else if ("HS256".equalsIgnoreCase(alg)) {
-            hsVerifier = new MACVerifier(secret.getBytes(StandardCharsets.UTF_8));
-        } else {
-            throw new IllegalStateException("Unsupported alg " + alg);
+
+        String a = normalizeAlg(alg);
+        switch (a) {
+            case "RS256": {
+                if (StringUtils.isBlank(publicKeyPem)) {
+                    throw new IllegalArgumentException("RS256 requires sso.jwt.publicKeyPem");
+                }
+                PublicKey pk = readRsaPublicKey(publicKeyPem);
+                rsVerifier = new RSASSAVerifier((RSAPublicKey) pk);
+                break;
+            }
+            case "HS256": {
+                if (StringUtils.isBlank(secret)) {
+                    throw new IllegalArgumentException("HS256 requires sso.jwt.secret (>=32 bytes)");
+                }
+                // 优化 要求hs256 > 32 bytes
+                int bytes = secret.getBytes(StandardCharsets.UTF_8).length;
+                if (bytes < 32) {
+                    throw new IllegalStateException(
+                            "HS256 secret too short: " + bytes + " bytes, require >= 32 bytes");
+                }
+                hsVerifier = new MACVerifier(secret.getBytes(StandardCharsets.UTF_8));
+                break;
+            }
+            default:
+                throw new IllegalStateException("Unsupported alg " + alg);
         }
     }
 
@@ -62,24 +83,27 @@ public class JwtVerifier {
         try {
             SignedJWT sjwt = SignedJWT.parse(jwt);
             boolean ok = "RS256".equalsIgnoreCase(alg) ? sjwt.verify(rsVerifier) : sjwt.verify(hsVerifier);
-            if (!ok)
+            if (!ok) {
                 throw new BadCredentialsException("JWT signature invalid");
-
+            }
             JWTClaimsSet c = sjwt.getJWTClaimsSet();
-            if (!expectedIss.equals(c.getIssuer()))
+            if (!expectedIss.equals(c.getIssuer())) {
                 throw new BadCredentialsException("iss mismatch");
+            }
             List<String> aud = c.getAudience();
-            if (aud == null || !aud.contains(expectedAud))
+            if (aud == null || !aud.contains(expectedAud)) {
                 throw new BadCredentialsException("aud mismatch");
+            }
 
             Instant now = Instant.now();
             Date exp = c.getExpirationTime();
-            if (exp == null || exp.toInstant().isBefore(now.minusSeconds(skew)))
+            if (exp == null || exp.toInstant().isBefore(now.minusSeconds(skew))) {
                 throw new BadCredentialsException("exp invalid");
+            }
             Date nbf = c.getNotBeforeTime();
-            if (nbf != null && nbf.toInstant().isAfter(now.plusSeconds(skew)))
+            if (nbf != null && nbf.toInstant().isAfter(now.plusSeconds(skew))) {
                 throw new BadCredentialsException("nbf invalid");
-
+            }
             return c;
         } catch (ParseException | JOSEException e) {
             throw new BadCredentialsException("JWT parse/verify error", e);
@@ -92,5 +116,9 @@ public class JwtVerifier {
                 .replaceAll("\\s", "");
         byte[] der = Base64.getDecoder().decode(p);
         return KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(der));
+    }
+
+    private static String normalizeAlg(String a) {
+        return a == null ? "" : a.trim().toUpperCase();
     }
 }

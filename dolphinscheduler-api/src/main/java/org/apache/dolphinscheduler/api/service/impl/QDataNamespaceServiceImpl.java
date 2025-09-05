@@ -26,6 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 创建namespace-tenant,user,token
@@ -51,6 +52,7 @@ public class QDataNamespaceServiceImpl extends BaseServiceImpl implements QDataN
     private QueueService queueService;
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public BootstrapNamespaceResponse bootstrapNamespace(User operator,
                                                          String namespace,
                                                          String displayName,

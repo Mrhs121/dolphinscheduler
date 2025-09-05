@@ -19,6 +19,13 @@ package org.apache.dolphinscheduler.plugin.kubeflow;
 
 import static org.apache.dolphinscheduler.common.constants.Constants.EMPTY_STRING;
 import static org.apache.dolphinscheduler.common.constants.Constants.SLEEP_TIME_MILLIS;
+import static org.apache.dolphinscheduler.plugin.kubeflow.KubeflowHelper.CONSTANTS.DEFAULT_DRIVER_CORES;
+import static org.apache.dolphinscheduler.plugin.kubeflow.KubeflowHelper.CONSTANTS.DEFAULT_DRIVER_MEMORY;
+import static org.apache.dolphinscheduler.plugin.kubeflow.KubeflowHelper.CONSTANTS.DEFAULT_EXECUTOR_CORES;
+import static org.apache.dolphinscheduler.plugin.kubeflow.KubeflowHelper.CONSTANTS.DEFAULT_EXECUTOR_MEMORY;
+import static org.apache.dolphinscheduler.plugin.kubeflow.KubeflowHelper.CONSTANTS.DEFAULT_NUM_EXECUTORS;
+import static org.apache.dolphinscheduler.plugin.kubeflow.KubeflowHelper.CONSTANTS.DEFAULT_SPARK_IMAGE;
+import static org.apache.dolphinscheduler.plugin.kubeflow.KubeflowHelper.CONSTANTS.DEFAULT_SPARK_TASK_SA;
 
 import org.apache.dolphinscheduler.common.enums.ProgramType;
 import org.apache.dolphinscheduler.common.thread.ThreadUtils;
@@ -57,6 +64,7 @@ import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import io.fabric8.kubernetes.client.dsl.LogWatch;
 
 @Slf4j
@@ -257,29 +265,53 @@ public class KubeflowTask extends AbstractRemoteTask {
         return Collections.emptyList();
     }
 
-    public String buildSparkSqlYaml(String arguments) throws JsonProcessingException {
+    public String buildSparkSqlYaml(String yamlContent) throws JsonProcessingException {
         String appName = getUniquePodAppName();
         String sparkDriverLogName = String.format("%s.log", appName);
         final String dsTaskLogPath = Paths.get(taskExecutionContext.getLogPath()).getParent().toString();
         log.info("Spark driver unique pod app name is {}", appName);
-
-        int driverCores = kubeflowParameters.getDriverCores() == 0 ? 1 : kubeflowParameters.getDriverCores();
-        int executorCores = kubeflowParameters.getExecutorCores() == 0 ? 1 : kubeflowParameters.getExecutorCores();
-        int numExecutors = kubeflowParameters.getNumExecutors() == 0 ? 1 : kubeflowParameters.getNumExecutors();
+        int driverCores =
+                kubeflowParameters.getDriverCores() == 0 ? DEFAULT_DRIVER_CORES : kubeflowParameters.getDriverCores();
+        int executorCores = kubeflowParameters.getExecutorCores() == 0 ? DEFAULT_EXECUTOR_CORES
+                : kubeflowParameters.getExecutorCores();
+        int numExecutors = kubeflowParameters.getNumExecutors() == 0 ? DEFAULT_NUM_EXECUTORS
+                : kubeflowParameters.getNumExecutors();
         String executorMemory =
-                kubeflowParameters.getExecutorMemory() == null ? "1g" : kubeflowParameters.getExecutorMemory();
+                kubeflowParameters.getExecutorMemory() == null ? DEFAULT_EXECUTOR_MEMORY
+                        : kubeflowParameters.getExecutorMemory();
         String driverMemory =
-                kubeflowParameters.getDriverMemory() == null ? "1g" : kubeflowParameters.getDriverMemory();
+                kubeflowParameters.getDriverMemory() == null ? DEFAULT_DRIVER_MEMORY
+                        : kubeflowParameters.getDriverMemory();
         String namespace = taskExecutionContext.getK8sTaskExecutionContext().getNamespace();
-        String formatedArguments = kubeflowParameters.convertDatasource(arguments);
+        String sql = yamlContent;
+        String image = DEFAULT_SPARK_IMAGE;
+        String serviceAccount = DEFAULT_SPARK_TASK_SA;
 
+        try {
+            JsonNode jsonNodes = JSONUtils.parseObject(yamlContent);
+            if (jsonNodes.has("sql")) {
+                sql = jsonNodes.get("sql").asText();
+            }
+            if (jsonNodes.has("image")) {
+                image = jsonNodes.get("image").asText();
+            }
+            if (jsonNodes.has("sa")) {
+                serviceAccount = jsonNodes.get("sa").asText();
+            }
+            log.info("Use custom pod configs image:{}, sa:{}", image, serviceAccount);
+        } catch (Exception e) {
+            log.info("The yaml content is not a json, fallback to simple text");
+        }
+        String sparkSqlTaskArguments = kubeflowParameters.convertDatasource(sql);
+
+        // Todo refactor yaml template
         try {
             InputStream inputStream = KubeflowTask.class.getResourceAsStream("/spark-sql-operator-template.yaml");
             String template = IOUtils.toString(inputStream, StandardCharsets.UTF_8);
             return template
                     .replace("${APP_NAME}", appName)
                     .replace("${NAMESPACE}", namespace)
-                    .replace("${ARGUMENTS}", formatedArguments)
+                    .replace("${ARGUMENTS}", sparkSqlTaskArguments)
                     .replace("${SPARK_LOG_FILE_NAME}", sparkDriverLogName)
                     .replace("${DS_TASK_LOG_PATH}", dsTaskLogPath)
                     .replace("${DRIVER_LABEL}", appName)
@@ -287,7 +319,9 @@ public class KubeflowTask extends AbstractRemoteTask {
                     .replace("${DRIVER_MEMORY}", driverMemory)
                     .replace("${EXECUTOR_CORES}", String.valueOf(executorCores))
                     .replace("${EXECUTOR_MEMORY}", executorMemory)
-                    .replace("${NUM_EXECUTORS}", String.valueOf(numExecutors));
+                    .replace("${NUM_EXECUTORS}", String.valueOf(numExecutors))
+                    .replace("${IMAGE}", image)
+                    .replace("${SERVICE_ACCOUNT}", serviceAccount);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

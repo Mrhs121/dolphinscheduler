@@ -7,7 +7,7 @@ spec:
   type: Scala
   mode: cluster
   sparkVersion: "3.5.5"
-  image: gitea.local.com:3333/common/spark:3.5.5-mysql-pg
+  image: ${IMAGE}
   imagePullPolicy: IfNotPresent
   mainClass: org.apache.spark.examples.SparkSQLCli
   mainApplicationFile: local:///opt/spark-sql/jas/spark-sql.jar
@@ -26,7 +26,7 @@ spec:
       dolphinscheduler-label: ${DRIVER_LABEL}
     cores: ${DRIVER_CORES}
     memory: ${DRIVER_MEMORY}
-    serviceAccount: super-spark-native-controller
+    serviceAccount: ${SERVICE_ACCOUNT}
 
   executor:
     cores: ${EXECUTOR_CORES}

@@ -820,6 +820,16 @@ public class ProcessDefinitionServiceImpl extends BaseServiceImpl implements Pro
                     taskDefinitionLogs,
                     taskRelationList);
         }
+        // --------------------------- qData need---------------------------
+        processDefinition.setProcessDefinitionLog(processDefinitionLogDao
+                .queryByDefinitionCodeAndVersion(processDefinition.getCode(), processDefinition.getVersion()));
+        processDefinition.setTaskDefinitionList(taskDefinitionMapper.queryByCodeList(
+                taskDefinitionLogs.stream().map(TaskDefinitionLog::getCode).collect(Collectors.toList())));
+        processDefinition.setTaskDefinitionLogList(taskDefinitionLogs);
+        processDefinition.setTaskRelationLogList(taskRelationList);
+        processDefinition
+                .setTaskRelationList(processTaskRelationMapper.queryByProcessCode(processDefinition.getCode()));
+        // --------------------------- qData need end ---------------------------
         return result;
     }
 

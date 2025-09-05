@@ -122,6 +122,7 @@ public class KubeflowHelper {
         public static final int TRACK_INTERVAL = 3000;
         public static final String YAML_FILE_PATH = "kubeflow.yaml";
         public static final String CLUSTER_CONFIG_PATH = ".cluster.yaml";
+        public static final String SPARK_OPERATOR_SQL_TASK_NAME_PREFIX = "rj-spark-sql-task";
     }
 
     public static class COMMAND {

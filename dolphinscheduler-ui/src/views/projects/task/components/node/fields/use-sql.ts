@@ -48,6 +48,19 @@ export function useSql(model: { [field: string]: any }): IJsonItem[] {
         language: 'sql'
       }
     },
+    {
+      type: 'editor',
+      field: 'datasources',
+      name: 'datasources',
+      props: {
+        language: 'json'
+      },
+      validate: {
+        trigger: ['input', 'trigger'],
+        required: false,
+        message: 'requestJson'
+      }
+    },
     useUdfs(model),
     ...useCustomParams({ model, field: 'localParams', isSimple: false }),
     {

@@ -17,6 +17,10 @@
 
 package org.apache.dolphinscheduler.plugin.kubeflow;
 
+import static org.apache.dolphinscheduler.common.constants.Constants.EMPTY_STRING;
+import static org.apache.dolphinscheduler.common.constants.Constants.SLEEP_TIME_MILLIS;
+
+import org.apache.dolphinscheduler.common.enums.ProgramType;
 import org.apache.dolphinscheduler.common.thread.ThreadUtils;
 import org.apache.dolphinscheduler.common.utils.JSONUtils;
 import org.apache.dolphinscheduler.common.utils.OSUtils;
@@ -25,9 +29,17 @@ import org.apache.dolphinscheduler.plugin.task.api.TaskConstants;
 import org.apache.dolphinscheduler.plugin.task.api.TaskException;
 import org.apache.dolphinscheduler.plugin.task.api.TaskExecutionContext;
 import org.apache.dolphinscheduler.plugin.task.api.model.Property;
+import org.apache.dolphinscheduler.plugin.task.api.utils.LogUtils;
 import org.apache.dolphinscheduler.plugin.task.api.utils.ParameterUtils;
+import org.apache.dolphinscheduler.plugin.task.api.utils.ProcessUtils;
 
+import org.apache.commons.io.IOUtils;
+
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -35,8 +47,17 @@ import java.nio.file.StandardOpenOption;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.StringJoiner;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.function.Consumer;
 
 import lombok.extern.slf4j.Slf4j;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import io.fabric8.kubernetes.client.dsl.LogWatch;
 
 @Slf4j
 public class KubeflowTask extends AbstractRemoteTask {
@@ -45,14 +66,34 @@ public class KubeflowTask extends AbstractRemoteTask {
     protected KubeflowHelper kubeflowHelper;
     private KubeflowParameters kubeflowParameters;
     private Path clusterYAMLPath;
-
+    protected boolean podLogOutputIsFinished = false;
+    protected boolean processLogOutputIsSuccess = false;
     private Path yamlPath;
-
+    protected Future<?> podLogOutputFuture;
+    protected Future<?> taskOutputFuture;
+    protected LinkedBlockingQueue<String> logBuffer;
+    protected Consumer<LinkedBlockingQueue<String>> logHandler;
     public KubeflowTask(TaskExecutionContext taskExecutionContext) {
         super(taskExecutionContext);
         this.taskExecutionContext = taskExecutionContext;
+        this.logBuffer = new LinkedBlockingQueue<>();
+        this.logBuffer.add(EMPTY_STRING);
+        this.logHandler = this::logHandle;
     }
 
+    /**
+     * log handle
+     *
+     * @param logs log list
+     */
+    public void logHandle(LinkedBlockingQueue<String> logs) {
+
+        StringJoiner joiner = new StringJoiner("\n\t");
+        while (!logs.isEmpty()) {
+            joiner.add(logs.poll());
+        }
+        log.info(" -> {}", joiner);
+    }
     @Override
     public void init() throws TaskException {
         kubeflowParameters = JSONUtils.parseObject(taskExecutionContext.getTaskParams(), KubeflowParameters.class);
@@ -77,6 +118,94 @@ public class KubeflowTask extends AbstractRemoteTask {
         KubeflowHelper.ApplicationIds applicationIds = new KubeflowHelper.ApplicationIds();
         applicationIds.setAlreadySubmitted(true);
         setAppIds(JSONUtils.toJsonString(applicationIds));
+
+        // ------------------- Collect Driver Pod Logs -------------------
+        if (kubeflowParameters.getProgramType() == ProgramType.SQL) {
+            collectPodLogIfNeeded();
+            ExecutorService parseProcessOutputExecutorService = ThreadUtils
+                    .newSingleDaemonScheduledExecutorService(
+                            "TaskInstanceLogOutput-thread-" + taskRequest.getTaskName());
+            taskOutputFuture = parseProcessOutputExecutorService.submit(() -> {
+                try {
+                    LogUtils.setTaskInstanceLogFullPathMDC(taskRequest.getLogPath());
+                    while (logBuffer.size() > 1 || !podLogOutputIsFinished) {
+                        if (logBuffer.size() > 1) {
+                            logHandler.accept(logBuffer);
+                            logBuffer.clear();
+                            logBuffer.add(EMPTY_STRING);
+                        } else {
+                            Thread.sleep(TaskConstants.DEFAULT_LOG_FLUSH_INTERVAL);
+                        }
+                    }
+                } catch (Exception e) {
+                    log.error("Output task log error", e);
+                } finally {
+                    LogUtils.removeTaskInstanceLogFullPathMDC();
+                }
+            });
+            parseProcessOutputExecutorService.shutdown();
+
+            if (taskOutputFuture != null) {
+                try {
+                    // Wait the task log process finished.
+                    taskOutputFuture.get();
+                } catch (ExecutionException e) {
+                    log.error("Handle task log error", e);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
+            if (podLogOutputFuture != null) {
+                try {
+                    // Wait kubernetes pod log collection finished
+                    podLogOutputFuture.get();
+                    // delete pod after successful execution and log collection
+                    ProcessUtils.deletePod(taskRequest, getUniquePodAppName());
+                } catch (ExecutionException | InterruptedException e) {
+                    log.error("Handle pod log error", e);
+                }
+            }
+        }
+
+    }
+
+    private void collectPodLogIfNeeded() {
+        if (null == taskRequest.getK8sTaskExecutionContext()) {
+            podLogOutputIsFinished = true;
+            return;
+        }
+
+        ExecutorService collectPodLogExecutorService = ThreadUtils
+                .newSingleDaemonScheduledExecutorService("CollectPodLogOutput-thread-" + taskRequest.getTaskName());
+
+        podLogOutputFuture = collectPodLogExecutorService.submit(() -> {
+            // wait for launching (driver) pod
+            ThreadUtils.sleep(SLEEP_TIME_MILLIS * 5L);
+            String driverPodLabel = getUniquePodAppName();
+            try (
+                    LogWatch watcher = ProcessUtils.getPodLogWatcher(taskRequest.getK8sTaskExecutionContext(),
+                            driverPodLabel, "")) {
+                if (watcher == null) {
+                    throw new RuntimeException("The driver pod does not exist.");
+                } else {
+                    String line;
+                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(watcher.getOutput()))) {
+                        while ((line = reader.readLine()) != null) {
+                            logBuffer.add(String.format("[kubeflow-spark-driver-pod-%s]: %s", taskRequest.getTaskName(),
+                                    line));
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            } finally {
+                podLogOutputIsFinished = true;
+            }
+
+        });
+
+        collectPodLogExecutorService.shutdown();
     }
 
     /**
@@ -102,7 +231,6 @@ public class KubeflowTask extends AbstractRemoteTask {
                 break;
             }
         } while (true);
-
     }
 
     @Override
@@ -129,6 +257,49 @@ public class KubeflowTask extends AbstractRemoteTask {
         return Collections.emptyList();
     }
 
+    public String buildSparkSqlYaml(String arguments) throws JsonProcessingException {
+        String appName = getUniquePodAppName();
+        String sparkDriverLogName = String.format("%s.log", appName);
+        final String dsTaskLogPath = Paths.get(taskExecutionContext.getLogPath()).getParent().toString();
+        log.info("Spark driver unique pod app name is {}", appName);
+
+        int driverCores = kubeflowParameters.getDriverCores() == 0 ? 1 : kubeflowParameters.getDriverCores();
+        int executorCores = kubeflowParameters.getExecutorCores() == 0 ? 1 : kubeflowParameters.getExecutorCores();
+        int numExecutors = kubeflowParameters.getNumExecutors() == 0 ? 1 : kubeflowParameters.getNumExecutors();
+        String executorMemory =
+                kubeflowParameters.getExecutorMemory() == null ? "1g" : kubeflowParameters.getExecutorMemory();
+        String driverMemory =
+                kubeflowParameters.getDriverMemory() == null ? "1g" : kubeflowParameters.getDriverMemory();
+        String namespace = taskExecutionContext.getK8sTaskExecutionContext().getNamespace();
+        String formatedArguments = kubeflowParameters.convertDatasource(arguments);
+
+        try {
+            InputStream inputStream = KubeflowTask.class.getResourceAsStream("/spark-sql-operator-template.yaml");
+            String template = IOUtils.toString(inputStream, StandardCharsets.UTF_8);
+            return template
+                    .replace("${APP_NAME}", appName)
+                    .replace("${NAMESPACE}", namespace)
+                    .replace("${ARGUMENTS}", formatedArguments)
+                    .replace("${SPARK_LOG_FILE_NAME}", sparkDriverLogName)
+                    .replace("${DS_TASK_LOG_PATH}", dsTaskLogPath)
+                    .replace("${DRIVER_LABEL}", appName)
+                    .replace("${DRIVER_CORES}", String.valueOf(driverCores))
+                    .replace("${DRIVER_MEMORY}", driverMemory)
+                    .replace("${EXECUTOR_CORES}", String.valueOf(executorCores))
+                    .replace("${EXECUTOR_MEMORY}", executorMemory)
+                    .replace("${NUM_EXECUTORS}", String.valueOf(numExecutors));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+    private String getUniquePodAppName() {
+        return String.format("%s-%s-%s-%s-%s",
+                KubeflowHelper.CONSTANTS.SPARK_OPERATOR_SQL_TASK_NAME_PREFIX,
+                taskExecutionContext.getProcessDefineCode(),
+                taskExecutionContext.getProcessDefineVersion(),
+                taskExecutionContext.getProcessInstanceId(),
+                taskExecutionContext.getTaskInstanceId());
+    }
     public void writeFiles() {
         String yamlContent = kubeflowParameters.getYamlContent();
         String clusterYAML = kubeflowParameters.getClusterYAML();
@@ -140,8 +311,11 @@ public class KubeflowTask extends AbstractRemoteTask {
         clusterYAMLPath =
                 Paths.get(taskExecutionContext.getExecutePath(), KubeflowHelper.CONSTANTS.CLUSTER_CONFIG_PATH);
 
-        log.info("Kubeflow task yaml content: \n{}", yamlContent);
         try {
+            if (kubeflowParameters.getProgramType() == ProgramType.SQL) {
+                yamlContent = buildSparkSqlYaml(yamlContent);
+            }
+            log.info("Kubeflow task yaml content: \n{}", yamlContent);
             Files.write(yamlPath, yamlContent.getBytes(), StandardOpenOption.CREATE);
             Files.write(clusterYAMLPath, clusterYAML.getBytes(), StandardOpenOption.CREATE);
         } catch (IOException e) {

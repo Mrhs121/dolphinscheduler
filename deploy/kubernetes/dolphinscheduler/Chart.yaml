@@ -52,7 +52,7 @@ dependencies:
   repository: https://raw.githubusercontent.com/bitnami/charts/archive-full-index/bitnami
   condition: postgresql.enabled
 - name: zookeeper
-  version: 6.5.3
+  version: 10.0.0
   # Same as above.
   repository: https://raw.githubusercontent.com/bitnami/charts/archive-full-index/bitnami
   condition: zookeeper.enabled

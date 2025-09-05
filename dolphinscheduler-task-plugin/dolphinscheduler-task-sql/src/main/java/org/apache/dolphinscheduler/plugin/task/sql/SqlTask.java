@@ -19,6 +19,8 @@ package org.apache.dolphinscheduler.plugin.task.sql;
 
 import org.apache.dolphinscheduler.common.utils.DateUtils;
 import org.apache.dolphinscheduler.common.utils.JSONUtils;
+import org.apache.dolphinscheduler.plugin.datasource.api.datasource.BaseDataSourceParamDTO;
+import org.apache.dolphinscheduler.plugin.datasource.api.datasource.QdataDatasources;
 import org.apache.dolphinscheduler.plugin.datasource.api.plugin.DataSourceClientProvider;
 import org.apache.dolphinscheduler.plugin.datasource.api.plugin.DataSourceProcessorProvider;
 import org.apache.dolphinscheduler.plugin.datasource.api.utils.DataSourceUtils;
@@ -106,6 +108,36 @@ public class SqlTask extends AbstractTask {
 
         sqlTaskExecutionContext =
                 sqlParameters.generateExtendedContext(taskExecutionContext.getResourceParametersHelper());
+
+        // By default, the manually configured data source is used first
+        if (StringUtils.isNotBlank(sqlParameters.getDatasources())) {
+            QdataDatasources datasources =
+                    JSONUtils.parseObject(sqlParameters.getDatasources(), QdataDatasources.class);
+            assert datasources != null;
+
+            if (!datasources.getDatasources().isEmpty()) {
+                QdataDatasources.Datasource datasource = datasources.getDatasources().get(0);
+                BaseDataSourceParamDTO dataSourceParams =
+                        DataSourceUtils.buildDatasourceParam(JSONUtils.toJsonString(datasource));
+                BaseConnectionParam connectionParam =
+                        (BaseConnectionParam) DataSourceUtils.buildConnectionParams(dataSourceParams);
+                Map<String, Object> params = new HashMap<>();
+                params.put("user", connectionParam.getUser());
+                params.put("password", connectionParam.getPassword());
+
+                params.put("address", connectionParam.getAddress());
+                params.put("database", connectionParam.getDatabase());
+                params.put("jdbcUrl", connectionParam.getJdbcUrl());
+                params.put("driverClassName", connectionParam.getDriverClassName());
+                params.put("validationQuery", connectionParam.getValidationQuery());
+                params.put("other", connectionParam.getOther());
+                if (datasource.getConnectType() != null) {
+                    params.put("dbConnectType", datasource.getConnectType().getCode());
+                }
+                log.info("Overwrite sql task connection parameter {}", sqlParameters.getDatasources());
+                sqlTaskExecutionContext.setConnectionParams(JSONUtils.toJsonString(params));
+            }
+        }
         dbType = DbType.valueOf(sqlParameters.getType());
     }
 

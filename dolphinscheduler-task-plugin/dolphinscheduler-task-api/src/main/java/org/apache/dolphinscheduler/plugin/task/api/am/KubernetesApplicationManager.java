@@ -79,6 +79,7 @@ public class KubernetesApplicationManager implements ApplicationManager {
             } else {
                 watchList.delete();
                 isKill = true;
+                log.info("Kubernetes application with label {} killed.", labelValue);
             }
         } catch (Exception e) {
             throw new TaskException("Failed to kill Kubernetes application with label " + labelValue, e);

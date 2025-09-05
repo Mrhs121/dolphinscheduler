@@ -57,7 +57,8 @@ public class SqlParameters extends AbstractParameters {
      * datasource id
      */
     private int datasource;
-
+    // adapt to qdata
+    private String datasources;
     /**
      * sql
      */
@@ -138,6 +139,14 @@ public class SqlParameters extends AbstractParameters {
 
     public void setDatasource(int datasource) {
         this.datasource = datasource;
+    }
+
+    public void setDatasources(String datasources) {
+        this.datasources = datasources;
+    }
+
+    public String getDatasources() {
+        return datasources;
     }
 
     public String getSql() {
@@ -230,7 +239,8 @@ public class SqlParameters extends AbstractParameters {
 
     @Override
     public boolean checkParameters() {
-        return datasource != 0 && StringUtils.isNotEmpty(type) && StringUtils.isNotEmpty(sql);
+        return (datasource != 0 || StringUtils.isNotEmpty(datasources)) && StringUtils.isNotEmpty(type)
+                && StringUtils.isNotEmpty(sql);
     }
 
     @Override
@@ -329,10 +339,13 @@ public class SqlParameters extends AbstractParameters {
      */
     public SQLTaskExecutionContext generateExtendedContext(ResourceParametersHelper parametersHelper) {
         SQLTaskExecutionContext sqlTaskExecutionContext = new SQLTaskExecutionContext();
-
-        DataSourceParameters dbSource =
-                (DataSourceParameters) parametersHelper.getResourceParameters(ResourceType.DATASOURCE, datasource);
-        sqlTaskExecutionContext.setConnectionParams(dbSource.getConnectionParams());
+        String connectionParams = null;
+        if (datasource != 0) {
+            DataSourceParameters dbSource =
+                    (DataSourceParameters) parametersHelper.getResourceParameters(ResourceType.DATASOURCE, datasource);
+            connectionParams = dbSource.getConnectionParams();
+        }
+        sqlTaskExecutionContext.setConnectionParams(connectionParams);
 
         // whether udf type
         boolean udfTypeFlag = Enums.getIfPresent(UdfType.class, Strings.nullToEmpty(this.getType())).isPresent()

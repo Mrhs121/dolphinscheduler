@@ -17,11 +17,25 @@
 
 package org.apache.dolphinscheduler.plugin.kubeflow;
 
+import org.apache.dolphinscheduler.common.enums.ProgramType;
+import org.apache.dolphinscheduler.common.utils.JSONUtils;
+import org.apache.dolphinscheduler.plugin.datasource.api.datasource.BaseDataSourceParamDTO;
+import org.apache.dolphinscheduler.plugin.datasource.api.datasource.QdataDatasources;
+import org.apache.dolphinscheduler.plugin.datasource.api.utils.DataSourceUtils;
 import org.apache.dolphinscheduler.plugin.task.api.parameters.AbstractParameters;
+import org.apache.dolphinscheduler.spi.datasource.BaseConnectionParam;
 
 import org.apache.commons.lang3.StringUtils;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import lombok.Data;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Data
 public class KubeflowParameters extends AbstractParameters {
@@ -29,9 +43,51 @@ public class KubeflowParameters extends AbstractParameters {
     private String yamlContent;
 
     private String clusterYAML;
+    /**
+     * program type
+     * 0 JAVA,1 SCALA,2 PYTHON,3 SQL
+     * Default value is SQL
+     */
+    private ProgramType programType = ProgramType.SQL;
+
+    // for spark-sql type kubeflow task
+    private int driverCores;
+    private String driverMemory;
+    private int numExecutors;
+    private int executorCores;
+    private String executorMemory;
+
+    String datasources;
 
     public boolean checkParameters() {
         return StringUtils.isNotEmpty(yamlContent);
+    }
+
+    public String convertDatasource(String sql) throws JsonProcessingException {
+        if (datasources == null) {
+            throw new RuntimeException("datasources is null");
+        }
+        List<Map<String, Object>> convertedDatasource = new ArrayList<>();
+        String formatedSql = sql.replaceAll("\\s+", " ");
+        QdataDatasources datasources = JSONUtils.parseObject(this.datasources, QdataDatasources.class);
+        for (QdataDatasources.Datasource datasource : datasources.getDatasources()) {
+            BaseDataSourceParamDTO dataSourceParams =
+                    DataSourceUtils.buildDatasourceParam(JSONUtils.toJsonString(datasource));
+            BaseConnectionParam connectionParam =
+                    (BaseConnectionParam) DataSourceUtils.buildConnectionParams(dataSourceParams);
+            Map<String, Object> params = new HashMap<>();
+
+            params.put("user", connectionParam.getUser());
+            params.put("password", connectionParam.getPassword());
+            params.put("catalogName", connectionParam.getDatabase());
+            params.put("url", connectionParam.getJdbcUrl());
+            convertedDatasource.add(params);
+        }
+        Map<String, Object> jsonObject = new HashMap<>();
+        jsonObject.put("datasources", convertedDatasource);
+        jsonObject.put("sql", formatedSql);
+        ObjectMapper objectMapper = new ObjectMapper();
+        return objectMapper.writeValueAsString(jsonObject);
     }
 
 }

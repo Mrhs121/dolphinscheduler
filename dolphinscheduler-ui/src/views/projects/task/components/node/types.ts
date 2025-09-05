@@ -276,6 +276,7 @@ interface ITaskParams {
   rawScript?: string
   initScript?: string
   programType?: string
+  datasources?: string
   flinkVersion?: string
   jobManagerMemory?: string
   taskManagerMemory?: string

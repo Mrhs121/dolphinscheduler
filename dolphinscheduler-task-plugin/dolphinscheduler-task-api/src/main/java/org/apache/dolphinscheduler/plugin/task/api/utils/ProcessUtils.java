@@ -159,6 +159,18 @@ public final class ProcessUtils {
         return String.join(" ", allPidList).trim();
     }
 
+    public static void deletePod(TaskExecutionContext taskExecutionContext,
+                                 String customerPodLabelName) {
+        if (Objects.nonNull(taskExecutionContext.getK8sTaskExecutionContext())) {
+            // Set empty container name for Spark on K8S task
+            applicationManagerMap.get(ResourceManagerType.KUBERNETES)
+                    .killApplication(new KubernetesApplicationManagerContext(
+                            taskExecutionContext.getK8sTaskExecutionContext(),
+                            Objects.isNull(customerPodLabelName) ? taskExecutionContext.getTaskAppId()
+                                    : customerPodLabelName,
+                            ""));
+        }
+    }
     /**
      * cancel k8s / yarn application
      *
@@ -170,10 +182,7 @@ public final class ProcessUtils {
             if (Objects.nonNull(taskExecutionContext.getK8sTaskExecutionContext())) {
                 if (!TASK_TYPE_SET_K8S.contains(taskExecutionContext.getTaskType())) {
                     // Set empty container name for Spark on K8S task
-                    applicationManagerMap.get(ResourceManagerType.KUBERNETES)
-                            .killApplication(new KubernetesApplicationManagerContext(
-                                    taskExecutionContext.getK8sTaskExecutionContext(),
-                                    taskExecutionContext.getTaskAppId(), ""));
+                    deletePod(taskExecutionContext, null);
                 }
             } else {
                 String host = taskExecutionContext.getHost();

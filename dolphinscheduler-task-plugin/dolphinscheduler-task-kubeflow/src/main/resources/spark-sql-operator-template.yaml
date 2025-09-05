@@ -1,0 +1,34 @@
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: ${APP_NAME}
+  namespace: ${NAMESPACE}
+spec:
+  type: Scala
+  mode: cluster
+  sparkVersion: "3.5.5"
+  image: gitea.local.com:3333/common/spark:3.5.5-mysql-pg
+  imagePullPolicy: IfNotPresent
+  mainClass: org.apache.spark.examples.SparkSQLCli
+  mainApplicationFile: local:///opt/spark-sql/jas/spark-sql.jar
+  arguments:
+    - |
+        ${ARGUMENTS}
+  restartPolicy:
+    type: Never
+
+  sparkConf:
+    spark.eventLog.enabled: "false"
+    spark.eventLog.dir: "/tmp"
+
+  driver:
+    labels:
+      dolphinscheduler-label: ${DRIVER_LABEL}
+    cores: ${DRIVER_CORES}
+    memory: ${DRIVER_MEMORY}
+    serviceAccount: super-spark-native-controller
+
+  executor:
+    cores: ${EXECUTOR_CORES}
+    instances: ${NUM_EXECUTORS}
+    memory: ${EXECUTOR_MEMORY}

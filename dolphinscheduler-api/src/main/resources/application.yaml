@@ -231,6 +231,20 @@ casdoor:
   # Doplhinscheduler login url
   redirect-url: ""
 
+sso:
+  issuer: "qdata"
+  audience: "dolphinscheduler"
+  redirectPrefix: "/dolphinscheduler/ui/"
+  clockSkewSeconds: 60
+
+  jwt:
+    # RS256/HS256
+    alg: "HS256"
+    publicKeyPem: |
+      -----BEGIN PUBLIC KEY-----
+         xxx
+      -----END PUBLIC KEY-----
+    secret: "abcdefghijklmnopqrstuvwxyz1234567890"
 
 # Override by profile
 
@@ -247,19 +261,4 @@ spring:
   quartz:
     properties:
       org.quartz.jobStore.driverDelegateClass: org.quartz.impl.jdbcjobstore.StdJDBCDelegate
-
-sso:
-  issuer: "qdata"
-  audience: "dolphinscheduler"
-  redirectPrefix: "/dolphinscheduler/ui/"
-  clockSkewSeconds: 60
-
-  jwt:
-    # RS256/HS256
-    alg: "HS256"
-    publicKeyPem: |
-      -----BEGIN PUBLIC KEY-----
-         xxx
-      -----END PUBLIC KEY-----
-    secret: "abcdefghijklmnopqrstuvwxyz1234567890"
 

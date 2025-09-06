@@ -1,51 +1,42 @@
 package org.apache.dolphinscheduler.api.sso;
 
+import org.apache.dolphinscheduler.api.service.SessionService;
 import org.apache.dolphinscheduler.common.constants.Constants;
+import org.apache.dolphinscheduler.dao.entity.Session;
 import org.apache.dolphinscheduler.dao.entity.User;
 
-import java.util.Collections;
-import java.util.List;
-
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import lombok.RequiredArgsConstructor;
+
 import org.springframework.stereotype.Component;
-import org.springframework.util.CollectionUtils;
 
 @Component
+@RequiredArgsConstructor
 public class SsoUserSessionBuilder {
 
-    /** 避免引入额外依赖，直接使用标准 key 字符串 */
-    private static final String SPRING_SECURITY_CONTEXT_KEY =
-            "SPRING_SECURITY_CONTEXT";
+    private final SessionService sessionService;
 
-    public void setup(User user, List<GrantedAuthority> auths, HttpServletRequest req) {
-        if (user == null)
+    /** 建立 DS 会话 + 下发 Cookie（与 DS 自有登录保持一致） */
+    public void setup(User user, HttpServletRequest req, HttpServletResponse resp) {
+        if (user == null) {
             return;
-
-        if (CollectionUtils.isEmpty(auths)) {
-            auths = Collections.emptyList();
         }
-        UsernamePasswordAuthenticationToken auth =
-                new UsernamePasswordAuthenticationToken(user.getUserName(), "N/A", auths);
-        auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(req));
 
-        // 放入 SecurityContext
-        SecurityContext context =
-                SecurityContextHolder.createEmptyContext();
-        context.setAuthentication(auth);
-        SecurityContextHolder.setContext(context);
+        // 1) 放入 HttpSession（DS 代码大量使用 Constants.SESSION_USER 读取）
+        HttpSession httpSession = req.getSession(true);
+        httpSession.setAttribute(Constants.SESSION_USER, user);
 
-        // 放入 HttpSession
-        HttpSession session = req.getSession(true);
-        session.setAttribute(SPRING_SECURITY_CONTEXT_KEY, context);
+        // 2) 创建/续期后端 Session，并下发 sessionId Cookie
+        Session dsSession = sessionService.createSessionIfAbsent(user);
 
-        // 兼容 DS 代码中读取的会话用户（很多地方用 Constants.SESSION_USER）
-        session.setAttribute(Constants.SESSION_USER, user);
+        Cookie c = new Cookie(Constants.SESSION_ID, dsSession.getId()); // 一般是 "sessionId"
+        c.setHttpOnly(true);
+        String ctx = req.getContextPath(); // 预期为 /dolphinscheduler
+        c.setPath((ctx == null || ctx.isEmpty()) ? "/" : ctx);
+        resp.addCookie(c);
     }
 }

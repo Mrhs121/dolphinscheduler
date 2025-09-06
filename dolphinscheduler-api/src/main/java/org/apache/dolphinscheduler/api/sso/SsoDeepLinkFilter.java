@@ -4,6 +4,7 @@ import org.apache.dolphinscheduler.api.service.UsersService;
 import org.apache.dolphinscheduler.dao.entity.User;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.regex.Pattern;
 
 import javax.servlet.FilterChain;
@@ -44,11 +45,12 @@ public class SsoDeepLinkFilter extends OncePerRequestFilter {
         final String uri = request.getRequestURI();
         final String ui = withTrailingSlash(uiPrefix);
 
-        // —— 显式放行 DS 原生认证端点，以免“冲突/串链”
+        // —— 放行 DS 原生认证与管理端点，避免“串链/冲突”
         if (startsWithAny(uri,
-                "/dolphinscheduler/login", // 含 /login 与 /login/sso
-                "/dolphinscheduler/oauth2-provider" // DS 内置 OAuth2
-        )) {
+                "/dolphinscheduler/login",
+                "/dolphinscheduler/oauth2-provider",
+                "/dolphinscheduler/redirect/login/oauth2",
+                "/dolphinscheduler/actuator")) {
             chain.doFilter(request, response);
             return;
         }
@@ -59,19 +61,17 @@ public class SsoDeepLinkFilter extends OncePerRequestFilter {
             return;
         }
 
-        // —— 放行 UI 登录页与静态资源（保证用户名/密码登录流程不受影响）
+        // —— 放行登录页与静态资源（保证用户名/密码流程不受影响）
         if (isLoginPath(uri, ui) || isStaticPath(uri)) {
             chain.doFilter(request, response);
             return;
         }
 
-        // —— 只在“页面直跳”场景触发：GET + 非 XHR
-        if (!"GET".equalsIgnoreCase(request.getMethod()) || isAjax(request)) {
+        // —— 只在 GET 且携带 _sso 时触发深链 SSO；否则放行
+        if (!"GET".equalsIgnoreCase(request.getMethod())) {
             chain.doFilter(request, response);
             return;
         }
-
-        // —— 未携带 _sso：放行，交给原有 Security（未登录会被引导到 /ui/login 或既有逻辑）
         String sso = request.getParameter("_sso");
         if (!StringUtils.hasText(sso)) {
             chain.doFilter(request, response);
@@ -79,63 +79,52 @@ public class SsoDeepLinkFilter extends OncePerRequestFilter {
         }
 
         try {
-            // —— 验签与会话建立
+            // 1) 验 JWT
             JWTClaimsSet claims = verifier.verify(sso);
-            String userName = String.valueOf(claims.getClaim("userName"));
+            String userName = claims.getStringClaim("userName");
             if (!StringUtils.hasText(userName)) {
                 response.setStatus(HttpStatus.FOUND.value());
                 response.setHeader("Location", ui + "login?error=sso_user");
                 return;
             }
 
-            User user = usersService.queryUser(userName);
+            // 2) 查用户
+            User user = usersService.getUserByUserName(userName);
             if (user == null) {
                 response.setStatus(HttpStatus.FORBIDDEN.value());
+                response.setContentType("text/plain;charset=UTF-8");
                 response.getWriter().write("user not found: " + userName);
                 return;
             }
 
-            sessionBuilder.setup(user, java.util.Collections.emptyList(), request);
+            // 3) 建立 DS 会话 + 下发 sessionId Cookie
+            sessionBuilder.setup(user, request, response);
 
-            // —— 302 到“去掉 _sso”的同一路径（保留其他查询参数）
+            // 4) 302 到“去掉 _sso”的同一路径（保留其他查询参数）
             String loc = stripSsoParam(request);
             response.setStatus(HttpStatus.FOUND.value());
             response.setHeader("Location", loc);
-            // 直接返回，避免继续进入 Security 再二次重定向
+            // 直接返回，避免继续进入链路被别的组件再次重定向
         } catch (Exception e) {
             log.warn("[SSO] verify/session failed: {}", e.toString(), e);
-            // 验证失败：送 UI 登录页，而不是后端 /login?error
+            // 验证失败：送 UI 登录页（避免落到 /login?error）
             response.setStatus(HttpStatus.FOUND.value());
             response.setHeader("Location", ui + "login?error=sso_invalid");
         }
     }
 
     private static boolean startsWithAny(String uri, String... prefixes) {
-        for (String p : prefixes)
-            if (uri.startsWith(p))
-                return true;
-        return false;
+        if (uri == null || prefixes == null)
+            return false;
+        return Arrays.stream(prefixes).anyMatch(uri::startsWith);
     }
 
-    private static String stripSsoParam(HttpServletRequest req) {
-        String uri = req.getRequestURI();
-        String qs = req.getQueryString();
-        if (qs == null || qs.isEmpty())
-            return uri;
+    private static boolean isStaticPath(String uri) {
+        return STATIC_EXT.matcher(uri).matches() || uri.contains("/assets/");
+    }
 
-        // 去掉 _sso=xxx（考虑 & 的位置
-        String[] parts = qs.split("&");
-        StringBuilder sb = new StringBuilder();
-        for (String p : parts) {
-            if (p.isEmpty())
-                continue;
-            if (p.startsWith("_sso="))
-                continue;
-            if (sb.length() > 0)
-                sb.append('&');
-            sb.append(p);
-        }
-        return sb.length() == 0 ? uri : (uri + "?" + sb.toString());
+    private static boolean isLoginPath(String uri, String ui) {
+        return uri.equals(ui + "login") || uri.startsWith(ui + "login/");
     }
 
     private static String withTrailingSlash(String s) {
@@ -144,16 +133,20 @@ public class SsoDeepLinkFilter extends OncePerRequestFilter {
         return s.endsWith("/") ? s : (s + "/");
     }
 
-    private static boolean isAjax(HttpServletRequest req) {
-        String xrw = req.getHeader("X-Requested-With");
-        return xrw != null && "XMLHttpRequest".equalsIgnoreCase(xrw);
+    private static String stripSsoParam(HttpServletRequest req) {
+        String uri = req.getRequestURI();
+        String qs = req.getQueryString();
+        if (qs == null || qs.isEmpty())
+            return uri;
+        StringBuilder sb = new StringBuilder();
+        for (String p : qs.split("&")) {
+            if (p.isEmpty() || p.startsWith("_sso="))
+                continue;
+            if (sb.length() > 0)
+                sb.append('&');
+            sb.append(p);
+        }
+        return sb.length() == 0 ? uri : (uri + "?" + sb);
     }
 
-    private boolean isLoginPath(String uri, String ui) {
-        return uri.equals(ui + "login") || uri.startsWith(ui + "login/");
-    }
-
-    private boolean isStaticPath(String uri) {
-        return STATIC_EXT.matcher(uri).matches() || uri.contains("/assets/");
-    }
 }

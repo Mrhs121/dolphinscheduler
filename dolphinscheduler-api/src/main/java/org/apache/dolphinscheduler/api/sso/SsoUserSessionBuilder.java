@@ -26,16 +26,16 @@ public class SsoUserSessionBuilder {
             return;
         }
 
-        // 1) 放入 HttpSession（DS 代码大量使用 Constants.SESSION_USER 读取）
+        // 1) 放入 HttpSession
         HttpSession httpSession = req.getSession(true);
         httpSession.setAttribute(Constants.SESSION_USER, user);
 
         // 2) 创建/续期后端 Session，并下发 sessionId Cookie
         Session dsSession = sessionService.createSessionIfAbsent(user);
 
-        Cookie c = new Cookie(Constants.SESSION_ID, dsSession.getId()); // 一般是 "sessionId"
+        Cookie c = new Cookie(Constants.SESSION_ID, dsSession.getId());
         c.setHttpOnly(true);
-        String ctx = req.getContextPath(); // 预期为 /dolphinscheduler
+        String ctx = req.getContextPath();
         c.setPath((ctx == null || ctx.isEmpty()) ? "/" : ctx);
         resp.addCookie(c);
     }

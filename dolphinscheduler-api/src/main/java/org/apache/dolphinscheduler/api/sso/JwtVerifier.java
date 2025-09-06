@@ -18,7 +18,6 @@ import javax.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Component;
 
 import com.nimbusds.jose.JOSEException;
@@ -34,9 +33,9 @@ public class JwtVerifier {
 
     @Value("${sso.jwt.alg:HS256}")
     private String alg;
-    @Value("${sso.jwt.publicKeyPem}")
+    @Value("${sso.jwt.publicKeyPem:}")
     private String publicKeyPem;
-    @Value("${sso.jwt.secret:abcdefghijklmnopqrstuvwxyz}")
+    @Value("${sso.jwt.secret:abcdefghijklmnopqrstuvwxyz1234567890}")
     private String secret;
     @Value("${sso.issuer:qdata}")
     private String expectedIss;
@@ -84,29 +83,29 @@ public class JwtVerifier {
             SignedJWT sjwt = SignedJWT.parse(jwt);
             boolean ok = "RS256".equalsIgnoreCase(alg) ? sjwt.verify(rsVerifier) : sjwt.verify(hsVerifier);
             if (!ok) {
-                throw new BadCredentialsException("JWT signature invalid");
+                throw new RuntimeException("JWT signature invalid");
             }
             JWTClaimsSet c = sjwt.getJWTClaimsSet();
             if (!expectedIss.equals(c.getIssuer())) {
-                throw new BadCredentialsException("iss mismatch");
+                throw new RuntimeException("iss mismatch");
             }
             List<String> aud = c.getAudience();
             if (aud == null || !aud.contains(expectedAud)) {
-                throw new BadCredentialsException("aud mismatch");
+                throw new RuntimeException("aud mismatch");
             }
 
             Instant now = Instant.now();
             Date exp = c.getExpirationTime();
             if (exp == null || exp.toInstant().isBefore(now.minusSeconds(skew))) {
-                throw new BadCredentialsException("exp invalid");
+                throw new RuntimeException("exp invalid");
             }
             Date nbf = c.getNotBeforeTime();
             if (nbf != null && nbf.toInstant().isAfter(now.plusSeconds(skew))) {
-                throw new BadCredentialsException("nbf invalid");
+                throw new RuntimeException("nbf invalid");
             }
             return c;
         } catch (ParseException | JOSEException e) {
-            throw new BadCredentialsException("JWT parse/verify error", e);
+            throw new RuntimeException("JWT parse/verify error", e);
         }
     }
 

@@ -28,6 +28,7 @@ RUN curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/s
     chmod +x kubectl && \
     mv kubectl /usr/local/bin/
 
+RUN rm -rf $DOLPHINSCHEDULER_HOME/ui
 ADD ./target/api-server $DOLPHINSCHEDULER_HOME
 
 EXPOSE 12345 25333

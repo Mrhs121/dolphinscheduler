@@ -239,6 +239,7 @@ public class QDataNamespaceServiceImpl extends BaseServiceImpl implements QDataN
                 .orElse(Collections.emptyList())
                 .stream()
                 .filter(Objects::nonNull)
+                .filter(t -> t.getUserId() == userId)
                 .filter(token -> token.getExpireTime() != null &&
                         token.getExpireTime().toInstant().isAfter(Instant.now()))
                 .max((t1, t2) -> t2.getExpireTime().compareTo(t1.getExpireTime()));

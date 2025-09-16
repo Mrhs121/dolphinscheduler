@@ -23,6 +23,7 @@ import org.apache.dolphinscheduler.plugin.datasource.api.datasource.AbstractData
 import org.apache.dolphinscheduler.plugin.datasource.api.datasource.BaseDataSourceParamDTO;
 import org.apache.dolphinscheduler.plugin.datasource.api.datasource.DataSourceProcessor;
 import org.apache.dolphinscheduler.plugin.datasource.api.utils.PasswordUtils;
+import org.apache.dolphinscheduler.plugin.datasource.api.utils.SQLTypeParserUtils;
 import org.apache.dolphinscheduler.spi.datasource.ConnectionParam;
 import org.apache.dolphinscheduler.spi.enums.DbType;
 
@@ -150,6 +151,11 @@ public class DorisDataSourceProcessor extends AbstractDataSourceProcessor {
         List<String> otherList = new ArrayList<>();
         otherMap.forEach((key, value) -> otherList.add(String.format("%s=%s", key, value)));
         return String.join("&", otherList);
+    }
+
+    @Override
+    public boolean isSelectQuery(String sql) {
+        return SQLTypeParserUtils.isSelectSql(sql, com.alibaba.druid.DbType.starrocks);
     }
 
 }

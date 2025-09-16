@@ -24,6 +24,7 @@ import org.apache.dolphinscheduler.plugin.datasource.api.datasource.AbstractData
 import org.apache.dolphinscheduler.plugin.datasource.api.datasource.BaseDataSourceParamDTO;
 import org.apache.dolphinscheduler.plugin.datasource.api.datasource.DataSourceProcessor;
 import org.apache.dolphinscheduler.plugin.datasource.api.utils.PasswordUtils;
+import org.apache.dolphinscheduler.plugin.datasource.api.utils.SQLTypeParserUtils;
 import org.apache.dolphinscheduler.spi.datasource.BaseConnectionParam;
 import org.apache.dolphinscheduler.spi.datasource.ConnectionParam;
 import org.apache.dolphinscheduler.spi.enums.DbType;
@@ -179,6 +180,11 @@ public class MySQLDataSourceProcessor extends AbstractDataSourceProcessor {
     public List<String> splitAndRemoveComment(String sql) {
         String cleanSQL = SQLParserUtils.removeComment(sql, com.alibaba.druid.DbType.mysql);
         return SQLParserUtils.split(cleanSQL, com.alibaba.druid.DbType.mysql);
+    }
+
+    @Override
+    public boolean isSelectQuery(String sql) {
+        return SQLTypeParserUtils.isSelectSql(sql, com.alibaba.druid.DbType.mysql);
     }
 
     private static boolean checkKeyIsLegitimate(String key) {

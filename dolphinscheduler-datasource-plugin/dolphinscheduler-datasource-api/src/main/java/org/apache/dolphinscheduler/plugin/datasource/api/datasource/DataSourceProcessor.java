@@ -116,4 +116,6 @@ public interface DataSourceProcessor {
     DataSourceProcessor create();
 
     List<String> splitAndRemoveComment(String sql);
+
+    boolean isSelectQuery(String sql);
 }

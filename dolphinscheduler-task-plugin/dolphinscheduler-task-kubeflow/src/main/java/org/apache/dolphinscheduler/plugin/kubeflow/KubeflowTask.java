@@ -19,6 +19,13 @@ package org.apache.dolphinscheduler.plugin.kubeflow;
 
 import static org.apache.dolphinscheduler.common.constants.Constants.EMPTY_STRING;
 import static org.apache.dolphinscheduler.common.constants.Constants.SLEEP_TIME_MILLIS;
+import static org.apache.dolphinscheduler.plugin.kubeflow.KubeflowHelper.CONSTANTS.DEFAULT_DRIVER_CORES;
+import static org.apache.dolphinscheduler.plugin.kubeflow.KubeflowHelper.CONSTANTS.DEFAULT_DRIVER_MEMORY;
+import static org.apache.dolphinscheduler.plugin.kubeflow.KubeflowHelper.CONSTANTS.DEFAULT_EXECUTOR_CORES;
+import static org.apache.dolphinscheduler.plugin.kubeflow.KubeflowHelper.CONSTANTS.DEFAULT_EXECUTOR_MEMORY;
+import static org.apache.dolphinscheduler.plugin.kubeflow.KubeflowHelper.CONSTANTS.DEFAULT_NUM_EXECUTORS;
+import static org.apache.dolphinscheduler.plugin.kubeflow.KubeflowHelper.CONSTANTS.DEFAULT_SPARK_IMAGE;
+import static org.apache.dolphinscheduler.plugin.kubeflow.KubeflowHelper.CONSTANTS.DEFAULT_SPARK_TASK_SA;
 
 import org.apache.dolphinscheduler.common.enums.ProgramType;
 import org.apache.dolphinscheduler.common.thread.ThreadUtils;
@@ -34,6 +41,7 @@ import org.apache.dolphinscheduler.plugin.task.api.utils.ParameterUtils;
 import org.apache.dolphinscheduler.plugin.task.api.utils.ProcessUtils;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -44,6 +52,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -57,6 +66,7 @@ import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import io.fabric8.kubernetes.client.dsl.LogWatch;
 
 @Slf4j
@@ -257,29 +267,75 @@ public class KubeflowTask extends AbstractRemoteTask {
         return Collections.emptyList();
     }
 
-    public String buildSparkSqlYaml(String arguments) throws JsonProcessingException {
+    public String buildSparkSqlYaml(String yamlContent) throws JsonProcessingException {
         String appName = getUniquePodAppName();
         String sparkDriverLogName = String.format("%s.log", appName);
         final String dsTaskLogPath = Paths.get(taskExecutionContext.getLogPath()).getParent().toString();
         log.info("Spark driver unique pod app name is {}", appName);
-
-        int driverCores = kubeflowParameters.getDriverCores() == 0 ? 1 : kubeflowParameters.getDriverCores();
-        int executorCores = kubeflowParameters.getExecutorCores() == 0 ? 1 : kubeflowParameters.getExecutorCores();
-        int numExecutors = kubeflowParameters.getNumExecutors() == 0 ? 1 : kubeflowParameters.getNumExecutors();
+        int driverCores =
+                kubeflowParameters.getDriverCores() == 0 ? DEFAULT_DRIVER_CORES : kubeflowParameters.getDriverCores();
+        int executorCores = kubeflowParameters.getExecutorCores() == 0 ? DEFAULT_EXECUTOR_CORES
+                : kubeflowParameters.getExecutorCores();
+        int numExecutors = kubeflowParameters.getNumExecutors() == 0 ? DEFAULT_NUM_EXECUTORS
+                : kubeflowParameters.getNumExecutors();
         String executorMemory =
-                kubeflowParameters.getExecutorMemory() == null ? "1g" : kubeflowParameters.getExecutorMemory();
+                kubeflowParameters.getExecutorMemory() == null ? DEFAULT_EXECUTOR_MEMORY
+                        : kubeflowParameters.getExecutorMemory();
         String driverMemory =
-                kubeflowParameters.getDriverMemory() == null ? "1g" : kubeflowParameters.getDriverMemory();
+                kubeflowParameters.getDriverMemory() == null ? DEFAULT_DRIVER_MEMORY
+                        : kubeflowParameters.getDriverMemory();
         String namespace = taskExecutionContext.getK8sTaskExecutionContext().getNamespace();
-        String formatedArguments = kubeflowParameters.convertDatasource(arguments);
+        String sql = yamlContent;
+        String image = DEFAULT_SPARK_IMAGE;
+        String serviceAccount = DEFAULT_SPARK_TASK_SA;
 
+        // spark sql yaml content can be json format, such as:
+        // {
+        // "sql" :"INSERT INTO data_platform.ods_test_wh SELECT * FROM ori.t_ds_audit_log; ",
+        // "image" : "huangsheng/spark:3.5.5-mysql-pg-ping",
+        // "sa": "spark-account"
+        // }
+
+        try {
+            JsonNode jsonNodes = JSONUtils.parseObject(yamlContent);
+            if (jsonNodes.has("sql")) {
+                sql = jsonNodes.get("sql").asText();
+            }
+            if (jsonNodes.has("image")) {
+                image = jsonNodes.get("image").asText();
+            }
+            if (jsonNodes.has("sa")) {
+                serviceAccount = jsonNodes.get("sa").asText();
+            }
+            log.info("Use custom pod configs image:{}, sa:{}", image, serviceAccount);
+        } catch (Exception e) {
+            log.info("The yaml content is not a json, fallback to simple text");
+        }
+        // TODO: the mount path of the external jar needs to be restructured
+        List<String> jars = new ArrayList<>();
+        List<KubeflowParameters.Udfs.UDFInfo> sparkUdfs = new ArrayList<>();
+        if (StringUtils.isNotEmpty(kubeflowParameters.getSparkUdfs())) {
+            KubeflowParameters.Udfs udf =
+                    JSONUtils.parseObject(kubeflowParameters.getSparkUdfs(), KubeflowParameters.Udfs.class);
+            for (KubeflowParameters.Udfs.UDFInfo udfInfo : udf.getUdfs()) {
+                jars.add(udfInfo.getJarPath());
+                KubeflowParameters.Udfs.UDFInfo sparkUdf = new KubeflowParameters.Udfs.UDFInfo();
+                sparkUdf.setFuncName(udfInfo.getFuncName());
+                sparkUdf.setClassName(udfInfo.getClassName());
+                sparkUdfs.add(sparkUdf);
+            }
+        }
+
+        String sparkSqlTaskArguments = kubeflowParameters.convertDatasource(sql, sparkUdfs);
+
+        // Todo refactor yaml template
         try {
             InputStream inputStream = KubeflowTask.class.getResourceAsStream("/spark-sql-operator-template.yaml");
             String template = IOUtils.toString(inputStream, StandardCharsets.UTF_8);
             return template
                     .replace("${APP_NAME}", appName)
                     .replace("${NAMESPACE}", namespace)
-                    .replace("${ARGUMENTS}", formatedArguments)
+                    .replace("${ARGUMENTS}", sparkSqlTaskArguments)
                     .replace("${SPARK_LOG_FILE_NAME}", sparkDriverLogName)
                     .replace("${DS_TASK_LOG_PATH}", dsTaskLogPath)
                     .replace("${DRIVER_LABEL}", appName)
@@ -287,7 +343,10 @@ public class KubeflowTask extends AbstractRemoteTask {
                     .replace("${DRIVER_MEMORY}", driverMemory)
                     .replace("${EXECUTOR_CORES}", String.valueOf(executorCores))
                     .replace("${EXECUTOR_MEMORY}", executorMemory)
-                    .replace("${NUM_EXECUTORS}", String.valueOf(numExecutors));
+                    .replace("${NUM_EXECUTORS}", String.valueOf(numExecutors))
+                    .replace("${IMAGE}", image)
+                    .replace("${SERVICE_ACCOUNT}", serviceAccount)
+                    .replace("${JARS}", jars.toString());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

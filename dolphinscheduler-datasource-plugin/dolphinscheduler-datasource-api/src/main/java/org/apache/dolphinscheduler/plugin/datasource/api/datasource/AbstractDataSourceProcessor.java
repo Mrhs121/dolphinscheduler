@@ -19,6 +19,7 @@ package org.apache.dolphinscheduler.plugin.datasource.api.datasource;
 
 import org.apache.dolphinscheduler.common.utils.JSONUtils;
 import org.apache.dolphinscheduler.plugin.datasource.api.utils.PasswordUtils;
+import org.apache.dolphinscheduler.plugin.datasource.api.utils.SQLTypeParserUtils;
 import org.apache.dolphinscheduler.spi.datasource.BaseConnectionParam;
 import org.apache.dolphinscheduler.spi.datasource.ConnectionParam;
 import org.apache.dolphinscheduler.spi.enums.DbType;
@@ -136,5 +137,10 @@ public abstract class AbstractDataSourceProcessor implements DataSourceProcessor
     public List<String> splitAndRemoveComment(String sql) {
         String cleanSQL = SQLParserUtils.removeComment(sql, com.alibaba.druid.DbType.other);
         return SQLParserUtils.split(cleanSQL, com.alibaba.druid.DbType.other);
+    }
+
+    @Override
+    public boolean isSelectQuery(String sql) {
+        return SQLTypeParserUtils.isSelectSql(sql, com.alibaba.druid.DbType.other);
     }
 }

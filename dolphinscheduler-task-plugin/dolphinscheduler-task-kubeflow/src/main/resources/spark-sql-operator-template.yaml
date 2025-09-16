@@ -7,7 +7,7 @@ spec:
   type: Scala
   mode: cluster
   sparkVersion: "3.5.5"
-  image: gitea.local.com:3333/common/spark:3.5.5-mysql-pg
+  image: ${IMAGE}
   imagePullPolicy: IfNotPresent
   mainClass: org.apache.spark.examples.SparkSQLCli
   mainApplicationFile: local:///opt/spark-sql/jas/spark-sql.jar
@@ -20,15 +20,27 @@ spec:
   sparkConf:
     spark.eventLog.enabled: "false"
     spark.eventLog.dir: "/tmp"
+  deps:
+    jars: ${JARS}
+  volumes:
+    - name: datas
+      hostPath:
+        path: /tmp/spark_dep_jars
 
   driver:
     labels:
       dolphinscheduler-label: ${DRIVER_LABEL}
     cores: ${DRIVER_CORES}
     memory: ${DRIVER_MEMORY}
-    serviceAccount: super-spark-native-controller
+    serviceAccount: ${SERVICE_ACCOUNT}
+    volumeMounts:
+      - name: datas
+        mountPath: /mnt/spark_dep_jars/
 
   executor:
     cores: ${EXECUTOR_CORES}
     instances: ${NUM_EXECUTORS}
     memory: ${EXECUTOR_MEMORY}
+    volumeMounts:
+      - name: datas
+        mountPath: /mnt/spark_dep_jars/

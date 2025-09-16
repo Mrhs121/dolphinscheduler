@@ -34,6 +34,7 @@ import java.util.Map;
 
 import lombok.Data;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -50,7 +51,7 @@ public class KubeflowParameters extends AbstractParameters {
      */
     private ProgramType programType = ProgramType.SQL;
 
-    // for spark-sql type kubeflow task
+    // --------- for spark-sql type kubeflow task ---------
     private int driverCores;
     private String driverMemory;
     private int numExecutors;
@@ -58,12 +59,15 @@ public class KubeflowParameters extends AbstractParameters {
     private String executorMemory;
 
     String datasources;
+    String sparkUdfs;
+    // ----------------------------------------------------
 
     public boolean checkParameters() {
         return StringUtils.isNotEmpty(yamlContent);
     }
 
-    public String convertDatasource(String sql) throws JsonProcessingException {
+    public String convertDatasource(String sql,
+                                    List<KubeflowParameters.Udfs.UDFInfo> sparkUdfs) throws JsonProcessingException {
         if (datasources == null) {
             throw new RuntimeException("datasources is null");
         }
@@ -86,8 +90,22 @@ public class KubeflowParameters extends AbstractParameters {
         Map<String, Object> jsonObject = new HashMap<>();
         jsonObject.put("datasources", convertedDatasource);
         jsonObject.put("sql", formatedSql);
+        jsonObject.put("udfs", sparkUdfs);
         ObjectMapper objectMapper = new ObjectMapper();
         return objectMapper.writeValueAsString(jsonObject);
     }
 
+    @Data
+    public static class Udfs {
+
+        private List<UDFInfo> udfs;
+        @Data
+        public static class UDFInfo {
+
+            private String funcName;
+            private String className;
+            @JsonInclude(JsonInclude.Include.NON_NULL)
+            private String jarPath;
+        }
+    }
 }

@@ -239,7 +239,11 @@ public class SqlTask extends AbstractTask {
                 // non query statement
                 String updateResult = executeUpdate(connection, mainStatementsBinds, "main");
                 result = setNonQuerySqlReturn(updateResult, sqlParameters.getLocalParams());
+            } else if (sqlParameters.getSqlType() == SqlType.HYBRID.ordinal()) {
+                String updateResult = executeHybrid(connection, mainStatementsBinds, "main");
+                result = setNonQuerySqlReturn(updateResult, sqlParameters.getLocalParams());
             }
+
             // deal out params
             sqlParameters.dealOutParam(result);
 
@@ -356,10 +360,36 @@ public class SqlTask extends AbstractTask {
         int result = 0;
         for (SqlBinds sqlBind : statementsBinds) {
             try (PreparedStatement statement = prepareStatementAndBind(connection, sqlBind)) {
-                result = statement.executeUpdate();
-                log.info("{} statement execute update result: {}, for sql: {}", handlerType, result,
-                        sqlBind.getSql());
+                result = executeSingleUpdate(connection, sqlBind, handlerType);
             }
+        }
+        return String.valueOf(result);
+    }
+
+    private int executeSingleUpdate(Connection connection, SqlBinds sqlBind,
+                                    String handlerType) throws Exception {
+        int result = 0;
+        try (PreparedStatement statement = prepareStatementAndBind(connection, sqlBind)) {
+            result = statement.executeUpdate();
+            log.info("{} statement execute update result: {}, for sql: {}", handlerType, result,
+                    sqlBind.getSql());
+        }
+        return result;
+    }
+
+    private String executeHybrid(Connection connection, List<SqlBinds> statementsBinds,
+                                 String handlerType) throws Exception {
+        int result = 0;
+        int sqlIndex = 1;
+        int total = statementsBinds.size();
+        for (SqlBinds sqlBind : statementsBinds) {
+            log.info("[{}/{}] statement execute hybrid, for sql: {}", sqlIndex, total, sqlBind.getSql());
+            if (DataSourceProcessorProvider.getDataSourceProcessor(dbType).isSelectQuery(sqlBind.getSql())) {
+                executeQuery(connection, sqlBind, handlerType);
+            } else {
+                result = executeSingleUpdate(connection, sqlBind, handlerType);
+            }
+            sqlIndex++;
         }
         return String.valueOf(result);
     }

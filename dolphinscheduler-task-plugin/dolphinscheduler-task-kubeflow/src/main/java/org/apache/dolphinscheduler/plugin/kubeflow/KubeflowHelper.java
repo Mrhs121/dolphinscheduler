@@ -123,6 +123,16 @@ public class KubeflowHelper {
         public static final String YAML_FILE_PATH = "kubeflow.yaml";
         public static final String CLUSTER_CONFIG_PATH = ".cluster.yaml";
         public static final String SPARK_OPERATOR_SQL_TASK_NAME_PREFIX = "rj-spark-sql-task";
+
+        public static int DEFAULT_EXECUTOR_CORES = 1;
+        public static int DEFAULT_DRIVER_CORES = 1;
+        public static int DEFAULT_NUM_EXECUTORS = 1;
+        public static String DEFAULT_DRIVER_MEMORY = "1g";
+        public static String DEFAULT_EXECUTOR_MEMORY = "1g";
+
+        public static String DEFAULT_SPARK_IMAGE = "gitea.local.com:3333/common/spark:3.5.5-mysql-pg";
+        public static String DEFAULT_SPARK_TASK_SA = "super-spark-native-controller";
+
     }
 
     public static class COMMAND {

@@ -539,6 +539,7 @@ export default {
     sql_type: 'SQL Type',
     sql_type_query: 'Query',
     sql_type_non_query: 'Non Query',
+    sql_type_hybrid_query: 'Hybrid Query',
     sql_statement: 'SQL Statement',
     pre_sql_statement: 'Pre SQL Statement',
     post_sql_statement: 'Post SQL Statement',

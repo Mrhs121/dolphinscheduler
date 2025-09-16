@@ -22,6 +22,7 @@ public enum SqlType {
      * sql type
      * 0 query
      * 1 NON_QUERY
+     * 2 HYBRID
      */
-    QUERY, NON_QUERY
+    QUERY, NON_QUERY, HYBRID;
 }

@@ -24,6 +24,7 @@ import org.apache.dolphinscheduler.plugin.datasource.api.datasource.AbstractData
 import org.apache.dolphinscheduler.plugin.datasource.api.datasource.BaseDataSourceParamDTO;
 import org.apache.dolphinscheduler.plugin.datasource.api.datasource.DataSourceProcessor;
 import org.apache.dolphinscheduler.plugin.datasource.api.utils.PasswordUtils;
+import org.apache.dolphinscheduler.plugin.datasource.api.utils.SQLTypeParserUtils;
 import org.apache.dolphinscheduler.spi.datasource.BaseConnectionParam;
 import org.apache.dolphinscheduler.spi.datasource.ConnectionParam;
 import org.apache.dolphinscheduler.spi.enums.DbType;
@@ -41,7 +42,6 @@ import java.util.Properties;
 import lombok.extern.slf4j.Slf4j;
 
 import com.alibaba.druid.sql.parser.SQLParserUtils;
-import com.alibaba.druid.sql.parser.SQLType;
 import com.google.auto.service.AutoService;
 
 @AutoService(DataSourceProcessor.class)
@@ -184,7 +184,7 @@ public class MySQLDataSourceProcessor extends AbstractDataSourceProcessor {
 
     @Override
     public boolean isSelectQuery(String sql) {
-        return SQLParserUtils.getSQLType(sql, com.alibaba.druid.DbType.mysql) == SQLType.SELECT;
+        return SQLTypeParserUtils.isSelectSql(sql, com.alibaba.druid.DbType.mysql);
     }
 
     private static boolean checkKeyIsLegitimate(String key) {

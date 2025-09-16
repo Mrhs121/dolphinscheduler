@@ -19,6 +19,7 @@ package org.apache.dolphinscheduler.plugin.datasource.api.datasource;
 
 import org.apache.dolphinscheduler.common.utils.JSONUtils;
 import org.apache.dolphinscheduler.plugin.datasource.api.utils.PasswordUtils;
+import org.apache.dolphinscheduler.plugin.datasource.api.utils.SQLTypeParserUtils;
 import org.apache.dolphinscheduler.spi.datasource.BaseConnectionParam;
 import org.apache.dolphinscheduler.spi.datasource.ConnectionParam;
 import org.apache.dolphinscheduler.spi.enums.DbType;
@@ -37,7 +38,6 @@ import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 
 import com.alibaba.druid.sql.parser.SQLParserUtils;
-import com.alibaba.druid.sql.parser.SQLType;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.collect.Sets;
 
@@ -141,6 +141,6 @@ public abstract class AbstractDataSourceProcessor implements DataSourceProcessor
 
     @Override
     public boolean isSelectQuery(String sql) {
-        return SQLParserUtils.getSQLType(sql, com.alibaba.druid.DbType.other) == SQLType.SELECT;
+        return SQLTypeParserUtils.isSelectSql(sql, com.alibaba.druid.DbType.other);
     }
 }

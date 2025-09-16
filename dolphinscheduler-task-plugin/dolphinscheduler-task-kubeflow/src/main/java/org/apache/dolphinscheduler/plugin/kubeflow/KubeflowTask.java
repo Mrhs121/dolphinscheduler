@@ -41,6 +41,7 @@ import org.apache.dolphinscheduler.plugin.task.api.utils.ParameterUtils;
 import org.apache.dolphinscheduler.plugin.task.api.utils.ProcessUtils;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -51,6 +52,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -287,6 +289,13 @@ public class KubeflowTask extends AbstractRemoteTask {
         String image = DEFAULT_SPARK_IMAGE;
         String serviceAccount = DEFAULT_SPARK_TASK_SA;
 
+        // spark sql yaml content can be json format, such as:
+        // {
+        // "sql" :"INSERT INTO data_platform.ods_test_wh SELECT * FROM ori.t_ds_audit_log; ",
+        // "image" : "huangsheng/spark:3.5.5-mysql-pg-ping",
+        // "sa": "spark-account"
+        // }
+
         try {
             JsonNode jsonNodes = JSONUtils.parseObject(yamlContent);
             if (jsonNodes.has("sql")) {
@@ -302,7 +311,22 @@ public class KubeflowTask extends AbstractRemoteTask {
         } catch (Exception e) {
             log.info("The yaml content is not a json, fallback to simple text");
         }
-        String sparkSqlTaskArguments = kubeflowParameters.convertDatasource(sql);
+        // TODO: the mount path of the external jar needs to be restructured
+        List<String> jars = new ArrayList<>();
+        List<KubeflowParameters.Udfs.UDFInfo> sparkUdfs = new ArrayList<>();
+        if (StringUtils.isNotEmpty(kubeflowParameters.getSparkUdfs())) {
+            KubeflowParameters.Udfs udf =
+                    JSONUtils.parseObject(kubeflowParameters.getSparkUdfs(), KubeflowParameters.Udfs.class);
+            for (KubeflowParameters.Udfs.UDFInfo udfInfo : udf.getUdfs()) {
+                jars.add(udfInfo.getJarPath());
+                KubeflowParameters.Udfs.UDFInfo sparkUdf = new KubeflowParameters.Udfs.UDFInfo();
+                sparkUdf.setFuncName(udfInfo.getFuncName());
+                sparkUdf.setClassName(udfInfo.getClassName());
+                sparkUdfs.add(sparkUdf);
+            }
+        }
+
+        String sparkSqlTaskArguments = kubeflowParameters.convertDatasource(sql, sparkUdfs);
 
         // Todo refactor yaml template
         try {
@@ -321,7 +345,8 @@ public class KubeflowTask extends AbstractRemoteTask {
                     .replace("${EXECUTOR_MEMORY}", executorMemory)
                     .replace("${NUM_EXECUTORS}", String.valueOf(numExecutors))
                     .replace("${IMAGE}", image)
-                    .replace("${SERVICE_ACCOUNT}", serviceAccount);
+                    .replace("${SERVICE_ACCOUNT}", serviceAccount)
+                    .replace("${JARS}", jars.toString());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

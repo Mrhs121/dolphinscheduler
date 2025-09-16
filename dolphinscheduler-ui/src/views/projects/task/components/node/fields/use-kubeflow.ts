@@ -186,6 +186,19 @@ export function useKubeflow(model: { [field: string]: any }): IJsonItem[] {
         message: 'requestJson'
       }
     },
+    {
+      type: 'editor',
+      field: 'sparkUdfs',
+      name: 'sparkUdfs',
+      props: {
+        language: 'json'
+      },
+      validate: {
+        trigger: ['input', 'trigger'],
+        required: false,
+        message: 'requestJson'
+      }
+    },
     ...useCustomParams({ model, field: 'localParams', isSimple: false })
   ]
 }

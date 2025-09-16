@@ -479,6 +479,7 @@ export function formatParams(data: INodeData): {
     taskParams.executorMemory = data.executorMemory
     taskParams.executorCores = data.executorCores
     taskParams.datasources = data.datasources
+    taskParams.sparkUdfs = data.sparkUdfs
   }
 
   if (data.taskType === 'LINKIS') {

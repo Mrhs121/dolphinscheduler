@@ -20,6 +20,12 @@ spec:
   sparkConf:
     spark.eventLog.enabled: "false"
     spark.eventLog.dir: "/tmp"
+  deps:
+    jars: ${JARS}
+  volumes:
+    - name: datas
+      hostPath:
+        path: /tmp/spark_dep_jars
 
   driver:
     labels:
@@ -27,8 +33,14 @@ spec:
     cores: ${DRIVER_CORES}
     memory: ${DRIVER_MEMORY}
     serviceAccount: ${SERVICE_ACCOUNT}
+    volumeMounts:
+      - name: datas
+        mountPath: /mnt/spark_dep_jars/
 
   executor:
     cores: ${EXECUTOR_CORES}
     instances: ${NUM_EXECUTORS}
     memory: ${EXECUTOR_MEMORY}
+    volumeMounts:
+      - name: datas
+        mountPath: /mnt/spark_dep_jars/

@@ -277,6 +277,7 @@ interface ITaskParams {
   initScript?: string
   programType?: string
   datasources?: string
+  sparkUdfs?: string
   flinkVersion?: string
   jobManagerMemory?: string
   taskManagerMemory?: string

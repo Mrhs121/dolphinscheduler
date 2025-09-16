@@ -36,6 +36,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.alibaba.druid.sql.parser.SQLParserUtils;
+import com.alibaba.druid.sql.parser.SQLType;
 import com.google.auto.service.AutoService;
 
 @AutoService(DataSourceProcessor.class)
@@ -150,6 +152,11 @@ public class DorisDataSourceProcessor extends AbstractDataSourceProcessor {
         List<String> otherList = new ArrayList<>();
         otherMap.forEach((key, value) -> otherList.add(String.format("%s=%s", key, value)));
         return String.join("&", otherList);
+    }
+
+    @Override
+    public boolean isSelectQuery(String sql) {
+        return SQLParserUtils.getSQLType(sql, com.alibaba.druid.DbType.starrocks) == SQLType.SELECT;
     }
 
 }

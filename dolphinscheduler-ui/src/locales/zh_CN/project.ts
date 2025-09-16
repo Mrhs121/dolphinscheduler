@@ -525,6 +525,7 @@ export default {
     sql_type: 'SQL类型',
     sql_type_query: '查询',
     sql_type_non_query: '非查询',
+    sql_type_hybrid_query: '混合查询',
     sql_statement: 'SQL语句',
     pre_sql_statement: '前置SQL语句',
     post_sql_statement: '后置SQL语句',

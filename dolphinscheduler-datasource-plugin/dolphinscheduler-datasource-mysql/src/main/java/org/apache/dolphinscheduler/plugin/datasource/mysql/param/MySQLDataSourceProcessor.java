@@ -41,6 +41,7 @@ import java.util.Properties;
 import lombok.extern.slf4j.Slf4j;
 
 import com.alibaba.druid.sql.parser.SQLParserUtils;
+import com.alibaba.druid.sql.parser.SQLType;
 import com.google.auto.service.AutoService;
 
 @AutoService(DataSourceProcessor.class)
@@ -179,6 +180,11 @@ public class MySQLDataSourceProcessor extends AbstractDataSourceProcessor {
     public List<String> splitAndRemoveComment(String sql) {
         String cleanSQL = SQLParserUtils.removeComment(sql, com.alibaba.druid.DbType.mysql);
         return SQLParserUtils.split(cleanSQL, com.alibaba.druid.DbType.mysql);
+    }
+
+    @Override
+    public boolean isSelectQuery(String sql) {
+        return SQLParserUtils.getSQLType(sql, com.alibaba.druid.DbType.mysql) == SQLType.SELECT;
     }
 
     private static boolean checkKeyIsLegitimate(String key) {

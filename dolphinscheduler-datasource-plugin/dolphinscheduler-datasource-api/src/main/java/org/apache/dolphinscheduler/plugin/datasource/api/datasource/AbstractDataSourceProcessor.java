@@ -37,6 +37,7 @@ import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 
 import com.alibaba.druid.sql.parser.SQLParserUtils;
+import com.alibaba.druid.sql.parser.SQLType;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.collect.Sets;
 
@@ -136,5 +137,10 @@ public abstract class AbstractDataSourceProcessor implements DataSourceProcessor
     public List<String> splitAndRemoveComment(String sql) {
         String cleanSQL = SQLParserUtils.removeComment(sql, com.alibaba.druid.DbType.other);
         return SQLParserUtils.split(cleanSQL, com.alibaba.druid.DbType.other);
+    }
+
+    @Override
+    public boolean isSelectQuery(String sql) {
+        return SQLParserUtils.getSQLType(sql, com.alibaba.druid.DbType.other) == SQLType.SELECT;
     }
 }

@@ -37,6 +37,10 @@ export function useSqlType(model: { [field: string]: any }): IJsonItem[] {
     {
       value: '1',
       label: t('project.node.sql_type_non_query')
+    },
+    {
+      value: '2',
+      label: t('project.node.sql_type_hybrid_query')
     }
   ]
 

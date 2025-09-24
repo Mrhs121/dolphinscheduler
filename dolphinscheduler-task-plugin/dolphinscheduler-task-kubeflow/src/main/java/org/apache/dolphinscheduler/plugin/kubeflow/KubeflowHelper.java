@@ -130,7 +130,7 @@ public class KubeflowHelper {
         public static String DEFAULT_DRIVER_MEMORY = "1g";
         public static String DEFAULT_EXECUTOR_MEMORY = "1g";
 
-        public static String DEFAULT_SPARK_IMAGE = "gitea.local.com:3333/common/spark:3.5.5-mysql-pg";
+        public static String DEFAULT_SPARK_IMAGE = "gitea.local.com:3333/common/spark:3.5.5-sql-client";
         public static String DEFAULT_SPARK_TASK_SA = "super-spark-native-controller";
 
     }

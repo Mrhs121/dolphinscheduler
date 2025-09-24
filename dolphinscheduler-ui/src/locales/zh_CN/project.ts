@@ -527,6 +527,7 @@ export default {
     sql_type_non_query: '非查询',
     sql_type_hybrid_query: '混合查询',
     sql_statement: 'SQL语句',
+    datasources: '自定义外部数据源',
     pre_sql_statement: '前置SQL语句',
     post_sql_statement: '后置SQL语句',
     sql_input_placeholder: '请输入非查询SQL语句',

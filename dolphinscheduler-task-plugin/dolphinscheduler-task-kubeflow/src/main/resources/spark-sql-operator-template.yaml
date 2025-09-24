@@ -9,8 +9,9 @@ spec:
   sparkVersion: "3.5.5"
   image: ${IMAGE}
   imagePullPolicy: IfNotPresent
-  mainClass: org.apache.spark.examples.SparkSQLCli
-  mainApplicationFile: local:///opt/spark-sql/jas/spark-sql.jar
+  timeToLiveSeconds: 86400
+  mainClass: org.apache.spark.sql.clients.SparkSQLCli
+  mainApplicationFile: local:///opt/spark-sql/jas/spark-sql.jar # spark-sql client jar stored in the image
   arguments:
     - |
         ${ARGUMENTS}

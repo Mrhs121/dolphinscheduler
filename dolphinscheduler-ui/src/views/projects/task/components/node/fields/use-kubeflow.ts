@@ -176,7 +176,7 @@ export function useKubeflow(model: { [field: string]: any }): IJsonItem[] {
     {
       type: 'editor',
       field: 'datasources',
-      name: 'datasources',
+      name: t('project.node.datasources'),
       props: {
         language: 'json'
       },

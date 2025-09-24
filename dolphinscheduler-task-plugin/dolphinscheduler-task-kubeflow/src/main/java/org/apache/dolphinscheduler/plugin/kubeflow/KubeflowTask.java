@@ -18,7 +18,6 @@
 package org.apache.dolphinscheduler.plugin.kubeflow;
 
 import static org.apache.dolphinscheduler.common.constants.Constants.EMPTY_STRING;
-import static org.apache.dolphinscheduler.common.constants.Constants.SLEEP_TIME_MILLIS;
 import static org.apache.dolphinscheduler.plugin.kubeflow.KubeflowHelper.CONSTANTS.DEFAULT_DRIVER_CORES;
 import static org.apache.dolphinscheduler.plugin.kubeflow.KubeflowHelper.CONSTANTS.DEFAULT_DRIVER_MEMORY;
 import static org.apache.dolphinscheduler.plugin.kubeflow.KubeflowHelper.CONSTANTS.DEFAULT_EXECUTOR_CORES;
@@ -156,6 +155,7 @@ public class KubeflowTask extends AbstractRemoteTask {
             parseProcessOutputExecutorService.shutdown();
 
             if (taskOutputFuture != null) {
+                log.info("Wait task log process finished.");
                 try {
                     // Wait the task log process finished.
                     taskOutputFuture.get();
@@ -165,15 +165,16 @@ public class KubeflowTask extends AbstractRemoteTask {
                     throw new RuntimeException(e);
                 }
             }
-
             if (podLogOutputFuture != null) {
+                log.info("Wait kubernetes pod log collection finished.");
                 try {
                     // Wait kubernetes pod log collection finished
                     podLogOutputFuture.get();
                     // delete pod after successful execution and log collection
                     ProcessUtils.deletePod(taskRequest, getUniquePodAppName());
+                    log.info("Kubernetes deleted pod {}", getUniquePodAppName());
                 } catch (ExecutionException | InterruptedException e) {
-                    log.error("Handle pod log error", e);
+                    log.error("Failed to delete driver pod {}", getUniquePodAppName(), e);
                 }
             }
         }
@@ -181,41 +182,80 @@ public class KubeflowTask extends AbstractRemoteTask {
     }
 
     private void collectPodLogIfNeeded() {
-        if (null == taskRequest.getK8sTaskExecutionContext()) {
+        if (taskRequest.getK8sTaskExecutionContext() == null) {
             podLogOutputIsFinished = true;
             return;
         }
 
+        String driverPodLabel = getUniquePodAppName();
         ExecutorService collectPodLogExecutorService = ThreadUtils
                 .newSingleDaemonScheduledExecutorService("CollectPodLogOutput-thread-" + taskRequest.getTaskName());
 
-        podLogOutputFuture = collectPodLogExecutorService.submit(() -> {
-            // wait for launching (driver) pod
-            ThreadUtils.sleep(SLEEP_TIME_MILLIS * 5L);
-            String driverPodLabel = getUniquePodAppName();
-            try (
-                    LogWatch watcher = ProcessUtils.getPodLogWatcher(taskRequest.getK8sTaskExecutionContext(),
-                            driverPodLabel, "")) {
-                if (watcher == null) {
-                    throw new RuntimeException("The driver pod does not exist.");
-                } else {
-                    String line;
-                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(watcher.getOutput()))) {
-                        while ((line = reader.readLine()) != null) {
-                            logBuffer.add(String.format("[kubeflow-spark-driver-pod-%s]: %s", taskRequest.getTaskName(),
-                                    line));
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            } finally {
-                podLogOutputIsFinished = true;
-            }
+        final long maxWaitTime = 5 * 60 * 1000L;
+        final long pollInterval = 5000L;
+        final long startTime = System.currentTimeMillis();
 
+        podLogOutputFuture = collectPodLogExecutorService.submit(() -> {
+            collectPodLogs(driverPodLabel, maxWaitTime, pollInterval, startTime);
         });
 
         collectPodLogExecutorService.shutdown();
+    }
+
+    private void collectPodLogs(String driverPodLabel, long maxWaitTime, long pollInterval, long startTime) {
+        LogWatch watcher = null;
+        try {
+            watcher = waitForPodAndGetLogWatcher(driverPodLabel, maxWaitTime, pollInterval, startTime);
+            readPodLogs(watcher);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Pod log collection was interrupted", e);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to collect pod logs", e);
+        } finally {
+            closeLogWatcher(watcher);
+            podLogOutputIsFinished = true;
+        }
+    }
+
+    private LogWatch waitForPodAndGetLogWatcher(String driverPodLabel, long maxWaitTime,
+                                                long pollInterval, long startTime) throws InterruptedException {
+        while (System.currentTimeMillis() - startTime < maxWaitTime) {
+            try {
+                LogWatch watcher = ProcessUtils.getPodLogWatcher(
+                        taskRequest.getK8sTaskExecutionContext(), driverPodLabel, "");
+                if (watcher != null) {
+                    return watcher;
+                } else {
+                    log.warn("Pod {} has not been created yet, will retry", driverPodLabel);
+                }
+            } catch (Exception e) {
+                log.warn("Checking pod {} existence failed, will retry: {}", driverPodLabel, e.getMessage());
+            }
+            Thread.sleep(pollInterval);
+        }
+
+        throw new RuntimeException("The driver pod did not start within the expected time.");
+    }
+
+    private void readPodLogs(LogWatch watcher) throws IOException {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(watcher.getOutput()))) {
+            String line;
+            String logPrefix = String.format("[SparkSqlClientPod-%s]: ", taskRequest.getTaskName());
+            while ((line = reader.readLine()) != null) {
+                logBuffer.add(logPrefix + line);
+            }
+        }
+    }
+
+    private void closeLogWatcher(LogWatch watcher) {
+        if (watcher != null) {
+            try {
+                watcher.close();
+            } catch (Exception e) {
+                log.warn("Failed to close log watcher", e);
+            }
+        }
     }
 
     /**

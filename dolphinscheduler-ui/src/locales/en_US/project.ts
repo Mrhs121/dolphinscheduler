@@ -541,6 +541,7 @@ export default {
     sql_type_non_query: 'Non Query',
     sql_type_hybrid_query: 'Hybrid Query',
     sql_statement: 'SQL Statement',
+    datasources: 'Customer External Datasources',
     pre_sql_statement: 'Pre SQL Statement',
     post_sql_statement: 'Post SQL Statement',
     sql_input_placeholder: 'Please enter non-query sql.',
